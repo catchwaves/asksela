@@ -946,7 +946,10 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
               <div className="path-sela-note-text">"{pathResponse.selaNote}"</div>
             </div>
 
-            <button className="restart-btn" onClick={reset} style={{ marginTop: 40 }}>← Assess another idea</button>
+            <div className="assess-actions" style={{ marginTop: 40 }}>
+              <button className="btn-assess-back" onClick={() => { setStep(5); setPathResponse(null); setChosenPath(null); setOverrideReason(''); }}>← See other options</button>
+              <button className="restart-btn" onClick={reset}>Assess another idea</button>
+            </div>
           </>
         )}
 
