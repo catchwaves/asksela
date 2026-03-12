@@ -1051,8 +1051,8 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
                 : <button className="btn-assess-primary"
                     disabled={!(finInputs.revenueTypes?.length > 0)}
                     onClick={() => {
-                      if (!user) { setShowAuthGate(true); return }
-                      if (isGated) { setShowSubscribeGate(true); return }
+                      if (isGated && !user) { setShowAuthGate(true); return }
+                      if (isGated && user) { setShowSubscribeGate(true); return }
                       generateCostPrompts()
                     }}>
                     Next: costs & capital →
