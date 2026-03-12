@@ -199,25 +199,17 @@ const ADVISOR_ROLES = {
 }
 
 async function callClaude(systemPrompt, userMessage) {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch('/api/chat', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system: systemPrompt, user: userMessage }),
   })
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error || `Server error: ${res.status}`)
+  }
   const data = await res.json()
-  return data.content[0].text
+  return data.text
 }
 
 function parseJSON(text) {
