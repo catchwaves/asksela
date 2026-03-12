@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 
 const STEPS = ['Idea', 'Scorecard', 'Financials', 'Advisors', 'Founder Fit', 'Verdict']
 
@@ -289,20 +290,40 @@ export default function Assess() {
   const [overrideReason, setOverrideReason] = useState('')
   const [pathResponse, setPathResponse]     = useState(null)
 
-  // ── Credits / subscription architecture ──────────────────────
-  // assessmentCount persists in localStorage so refreshing doesn't reset it.
-  // isSubscribed is always false for now — flipped to true when Stripe is live.
-  // showSubscribeGate controls whether the paywall screen is visible.
+  // ── Auth + subscription architecture ─────────────────────────
+  // user: the signed-in Supabase user object (null if not signed in)
+  // assessmentCount: persists in localStorage as a fallback; server-side enforcement comes later
+  // isSubscribed: always false for now — flipped to true when Stripe is live
+  // showSubscribeGate / showAuthGate: control which modal is visible
+  const [user, setUser]                      = useState(null)
+  const [authLoading, setAuthLoading]        = useState(true)
   const [assessmentCount, setAssessmentCount] = useState(() => {
     try { return parseInt(localStorage.getItem('sela_assessment_count') || '0', 10) } catch { return 0 }
   })
-  const [isSubscribed]      = useState(false)
+  const [isSubscribed]                       = useState(false)
   const [showSubscribeGate, setShowSubscribeGate] = useState(false)
+  const [showAuthGate, setShowAuthGate]      = useState(false)
   const [notifyEmail, setNotifyEmail]        = useState('')
   const [notifySubmitted, setNotifySubmitted] = useState(false)
 
-  // Gate check: second+ assessment, not subscribed, trying to move to Financials
+  // Gate logic:
+  // - Not signed in → show auth gate (sign in first)
+  // - Signed in, second+ assessment, not subscribed → show subscribe gate
   const isGated = assessmentCount >= 1 && !isSubscribed
+
+  // Listen for auth state changes (sign in / sign out)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setAuthLoading(false)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      // If they just signed in and the subscribe gate is showing, close it
+      if (session?.user) setShowAuthGate(false)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   useEffect(() => {
     const el = document.createElement('style')
@@ -1027,7 +1048,11 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
                 ? <LoadingState label="Tailoring cost questions to your business..." sub="Sela is pulling industry benchmarks" />
                 : <button className="btn-assess-primary"
                     disabled={!(finInputs.revenueTypes?.length > 0)}
-                    onClick={() => isGated ? setShowSubscribeGate(true) : generateCostPrompts()}>
+                    onClick={() => {
+                      if (!user) { setShowAuthGate(true); return }
+                      if (isGated) { setShowSubscribeGate(true); return }
+                      generateCostPrompts()
+                    }}>
                     Next: costs & capital →
                   </button>
               }
@@ -1438,7 +1463,47 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
           </>
         )}
 
-        {/* ── SUBSCRIBE GATE ── */}
+        {/* ── AUTH GATE — shown when not signed in ── */}
+        {showAuthGate && (
+          <div className="subscribe-gate">
+            <div className="subscribe-gate-icon">◎</div>
+            <h2 className="subscribe-gate-heading">
+              Sign in to unlock<br /><em>the full assessment.</em>
+            </h2>
+            <p className="subscribe-gate-sub">
+              Your scorecard is free — no account needed. To go deeper with financial projections, your advisory board, and a full verdict, sign in first. It takes one click.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+              <button
+                className="btn-assess-primary"
+                style={{ justifyContent: 'center', gap: 12 }}
+                onClick={() => supabase.auth.signInWithOAuth({
+                  provider: 'google',
+                  options: { redirectTo: window.location.href }
+                })}
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+                  <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+                  <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                  <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+                </svg>
+                Continue with Google
+              </button>
+            </div>
+
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 24, lineHeight: 1.6 }}>
+              Apple sign-in coming soon. Your first assessment is always free — signing in just saves your progress and unlocks the full flow.
+            </p>
+
+            <button className="subscribe-gate-back" onClick={() => setShowAuthGate(false)}>
+              ← Back to scorecard
+            </button>
+          </div>
+        )}
+
+        {/* ── SUBSCRIBE GATE — shown on second+ assessment ── */}
         {showSubscribeGate && (
           <div className="subscribe-gate">
             <div className="subscribe-gate-icon">◎</div>
