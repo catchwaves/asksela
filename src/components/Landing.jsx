@@ -214,8 +214,8 @@ export default function Landing() {
         <div className="hero-left">
           <p className="hero-eyebrow">Honest advice before you commit</p>
           <h1 className="hero-headline">
-            The right decision.<br />
-            Not the <em>positive</em> one.
+            Make the right decision.<br />
+            Not just the one <em>you want.</em>
           </h1>
           <p className="hero-sub">
             Sela is an AI advisor built for founders at the idea stage. She scores your idea honestly, stress-tests the finances, and tells you what five experienced advisors would actually say — before you spend a dollar.
