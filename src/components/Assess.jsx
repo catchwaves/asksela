@@ -128,7 +128,7 @@ const styles = `
   .next-step-item { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
   .next-step-num { font-family: var(--font-display); font-size: 28px; font-weight: 300; color: var(--clay); line-height: 1; flex-shrink: 0; width: 32px; }
   .next-step-text { font-size: 14px; font-weight: 300; color: var(--ink-soft); line-height: 1.65; padding-top: 6px; }
-  .restart-btn { display: inline-flex; align-items: center; gap: 10px; background: var(--paper-deep); border: 1px solid var(--border); padding: 14px 28px; font-family: var(--font-body); font-size: 13px; color: var(--ink-soft); border-radius: 2px; cursor: pointer; transition: all 0.2s; margin-top: 40px; }
+  .restart-btn { display: inline-flex; align-items: center; gap: 10px; background: var(--paper-deep); border: 1px solid var(--border); padding: 14px 28px; font-family: var(--font-body); font-size: 13px; color: var(--ink-soft); border-radius: 2px; cursor: pointer; transition: all 0.2s; }
   .restart-btn:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
   /* ERROR */
