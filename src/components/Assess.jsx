@@ -154,6 +154,8 @@ const styles = `
   .gate-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
   .gate-option { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 28px 24px; cursor: pointer; transition: all 0.2s; text-align: left; font-family: var(--font-body); width: 100%; }
   .gate-option:hover { border-color: var(--clay); box-shadow: 0 4px 20px rgba(200,132,90,0.12); transform: translateY(-2px); }
+  .gate-option.selected { border-color: var(--clay); background: rgba(200,132,90,0.06); box-shadow: 0 0 0 2px var(--clay); transform: translateY(-2px); }
+  .gate-option.selected .gate-option-title { color: var(--clay); }
   .gate-option-icon { font-size: 22px; margin-bottom: 14px; display: block; }
   .gate-option-title { font-family: var(--font-display); font-size: 20px; font-weight: 500; color: var(--ink); margin-bottom: 8px; }
   .gate-option-desc { font-size: 13px; font-weight: 300; color: var(--ink-soft); line-height: 1.6; }
