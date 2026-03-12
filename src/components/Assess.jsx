@@ -133,7 +133,20 @@ const styles = `
   /* ERROR */
   .error-box { background: rgba(180,80,70,0.08); border: 1px solid rgba(180,80,70,0.25); border-radius: 4px; padding: 20px 24px; margin-bottom: 24px; font-size: 14px; color: #8B3A34; line-height: 1.6; }
 
-  /* DECISION GATE */
+  /* ADVISOR FOLLOW-UP */
+  .followup-wrap { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 8px; }
+  .followup-thread { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+  .followup-q { background: var(--paper-deep); border-radius: 3px; padding: 10px 14px; font-size: 13px; font-weight: 400; color: var(--ink); line-height: 1.55; }
+  .followup-q-label { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .followup-a { padding: 0 0 0 14px; border-left: 2px solid var(--clay); font-size: 13px; font-weight: 300; color: var(--ink); line-height: 1.65; font-style: italic; }
+  .followup-a-label { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--clay); margin-bottom: 4px; font-style: normal; }
+  .followup-input-row { display: flex; gap: 10px; align-items: flex-end; }
+  .followup-input { flex: 1; background: white; border: 1px solid var(--border); border-radius: 2px; padding: 10px 14px; font-family: var(--font-body); font-size: 13px; font-weight: 300; color: var(--ink); outline: none; resize: none; line-height: 1.5; transition: border-color 0.2s; }
+  .followup-input:focus { border-color: var(--clay); }
+  .followup-send { background: var(--ink); border: none; border-radius: 2px; padding: 10px 16px; color: var(--paper); font-family: var(--font-body); font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+  .followup-send:hover:not(:disabled) { background: var(--clay); }
+  .followup-send:disabled { opacity: 0.4; cursor: not-allowed; }
+  .followup-thinking { font-size: 12px; font-style: italic; color: var(--muted); padding: 8px 0; }
   .gate-wrap { margin-top: 48px; padding-top: 48px; border-top: 1px solid var(--border); }
   .gate-question { font-family: var(--font-display); font-size: 28px; font-weight: 300; color: var(--ink); margin-bottom: 8px; line-height: 1.2; }
   .gate-sub { font-size: 14px; font-weight: 300; color: var(--muted); margin-bottom: 32px; }
@@ -248,6 +261,9 @@ export default function Assess() {
   // Step 4 — advisors
   const [advisors, setAdvisors]   = useState(null)
   const [openAdvisor, setOpenAdvisor] = useState(null)
+  const [followUpInputs, setFollowUpInputs]   = useState({}) // { advisorName: currentInput }
+  const [followUpThreads, setFollowUpThreads] = useState({}) // { advisorName: [{q, a}] }
+  const [followUpLoading, setFollowUpLoading] = useState({}) // { advisorName: bool }
 
   // Step 5 — fit inputs + results
   const [fitInputs, setFitInputs] = useState({ background: '', time: '', capital: '', motivation: '', weakness: '' })
@@ -450,6 +466,28 @@ Biggest risk identified: ${scorecard?.biggestRisk}`
     finally { setLoading(false) }
   }
 
+  async function generateFollowUp(advisorName, question) {
+    setFollowUpLoading(p => ({ ...p, [advisorName]: true }))
+    const advisor = advisors.advisors.find(a => a.name === advisorName)
+    const thread  = followUpThreads[advisorName] || []
+    try {
+      const history = thread.map(t => `Q: ${t.q}\nA: ${t.a}`).join('\n\n')
+      const raw = await callClaude(
+        `You are ${advisorName}, a ${ADVISOR_ROLES[advisorName]} on an advisory board. Respond in your own voice — direct, specific, honest. 2-4 sentences. No preamble.`,
+        `Business idea: ${idea}
+Your original stance: ${advisor.stance}
+Your original advice: "${advisor.advice}"
+${history ? `Previous follow-ups:\n${history}\n\n` : ''}Founder's question: ${question}`
+      )
+      setFollowUpThreads(p => ({
+        ...p,
+        [advisorName]: [...thread, { q: question, a: raw.trim() }]
+      }))
+      setFollowUpInputs(p => ({ ...p, [advisorName]: '' }))
+    } catch(e) { setError(e.message) }
+    finally { setFollowUpLoading(p => ({ ...p, [advisorName]: false })) }
+  }
+
   async function generateFit() {
     setLoading(true); setError(null)
     try {
@@ -525,6 +563,7 @@ Most important question: ${fit?.mostImportantQuestion}`
     setFinInputs({ startup:'', revenueTypes:[], streams:{}, costs:{} }); setFinancials(null)
     setCostPrompts(null)
     setAdvisors(null); setOpenAdvisor(null)
+    setFollowUpInputs({}); setFollowUpThreads({}); setFollowUpLoading({})
     setFitInputs({ background:'', time:'', capital:'', motivation:'', weakness:'' }); setFit(null)
     setVerdict(null); setError(null)
     setChosenPath(null); setOverrideReason(''); setPathResponse(null)
@@ -1097,6 +1136,51 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
                   <div className="advisor-response-section">
                     <div className="advisor-response-section-label">Advice</div>
                     <div className="advisor-response-section-text">{a.advice}</div>
+                  </div>
+
+                  {/* FOLLOW-UP THREAD */}
+                  <div className="followup-wrap">
+                    {(followUpThreads[a.name] || []).length > 0 && (
+                      <div className="followup-thread">
+                        {followUpThreads[a.name].map((t, i) => (
+                          <div key={i}>
+                            <div className="followup-q">
+                              <div className="followup-q-label">You asked</div>
+                              {t.q}
+                            </div>
+                            <div className="followup-a" style={{ marginTop: 8 }}>
+                              <div className="followup-a-label">{a.name}</div>
+                              {t.a}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {followUpLoading[a.name] ? (
+                      <div className="followup-thinking">{a.name} is thinking...</div>
+                    ) : (
+                      <div className="followup-input-row">
+                        <textarea
+                          className="followup-input"
+                          rows={2}
+                          placeholder={`Ask ${a.name} a follow-up question...`}
+                          value={followUpInputs[a.name] || ''}
+                          onChange={e => setFollowUpInputs(p => ({ ...p, [a.name]: e.target.value }))}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey && (followUpInputs[a.name] || '').trim().length > 5) {
+                              e.preventDefault()
+                              generateFollowUp(a.name, followUpInputs[a.name].trim())
+                            }
+                          }}
+                        />
+                        <button
+                          className="followup-send"
+                          disabled={!(followUpInputs[a.name] || '').trim() || (followUpInputs[a.name] || '').trim().length < 5}
+                          onClick={() => generateFollowUp(a.name, followUpInputs[a.name].trim())}>
+                          Ask →
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
