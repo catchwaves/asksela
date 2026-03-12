@@ -225,12 +225,25 @@ export default function Assess() {
   const [idea, setIdea]           = useState('')
   const [founderContext, setFounderContext] = useState('')
 
+  // Step 0.5 — founder context
+  const [founderRole, setFounderRole]     = useState('')  // 'operator' | 'owner' | 'investor'
+  const [founderGoal, setFounderGoal]     = useState('')  // 'primary' | 'parttime' | 'equity'
+  const [needsPay, setNeedsPay]           = useState('')  // 'yes' | 'no'
+  const [payAmount, setPayAmount]         = useState('')
+  const [teamMembers, setTeamMembers]     = useState([])  // [{role, salary, expertise}]
+  const [investors, setInvestors]         = useState([])  // [{who, amount, expectations}]
+  const [showAddTeam, setShowAddTeam]     = useState(false)
+  const [showAddInvestor, setShowAddInvestor] = useState(false)
+  const [newTeamMember, setNewTeamMember] = useState({ role: '', salary: '', expertise: '' })
+  const [newInvestor, setNewInvestor]     = useState({ who: '', amount: '', expectations: '' })
+
   // Step 2 — scorecard
   const [scorecard, setScorecard] = useState(null)
 
   // Step 3 — financial inputs + results
-  const [finInputs, setFinInputs] = useState({ price: '', customers: '', startup: '', expenses: '' })
+  const [finInputs, setFinInputs] = useState({ startup: '', revenueTypes: [], streams: {}, costs: {} })
   const [financials, setFinancials] = useState(null)
+  const [costPrompts, setCostPrompts] = useState(null) // AI-generated contextual cost questions
 
   // Step 4 — advisors
   const [advisors, setAdvisors]   = useState(null)
@@ -255,7 +268,26 @@ export default function Assess() {
     return () => document.head.removeChild(el)
   }, [])
 
-  // ── Step handlers ──────────────────────────────────────────────
+  // Scroll to top on every step change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [step])
+
+  // Build a founder context summary string for AI calls
+  function founderContextSummary() {
+    const roleMap = { operator: 'Owner-operator (hands-on, day-to-day)', owner: 'Hands-on owner but not primary day-to-day operator', investor: 'Investor (not involved in day-to-day)' }
+    const goalMap = { primary: 'Primary income source', parttime: 'Part-time / supplemental income', equity: 'Future equity value / exit' }
+    let summary = `Desired role: ${roleMap[founderRole] || founderRole}. Primary goal: ${goalMap[founderGoal] || founderGoal}. `
+    summary += needsPay === 'yes' ? `Needs to be paid within 12 months: Yes ($${payAmount}/month). ` : 'Does not need pay in first 12 months. '
+    if (teamMembers.length > 0) {
+      summary += `Team members expecting pay: ${teamMembers.map(t => `${t.role} ($${t.salary}/mo, expertise: ${t.expertise})`).join('; ')}. `
+    }
+    if (investors.length > 0) {
+      summary += `Other investors: ${investors.map(i => `${i.who} ($${i.amount}, expects: ${i.expectations})`).join('; ')}. `
+    }
+    if (founderContext) summary += `Additional context: ${founderContext}`
+    return summary
+  }
 
   async function generateScorecard() {
     setLoading(true); setError(null)
@@ -281,7 +313,7 @@ export default function Assess() {
 }
 
 Business idea: ${idea}
-Founder context: ${founderContext || 'Not provided'}`
+Founder context: ${founderContextSummary()}`
       )
       const parsed = parseJSON(raw)
       if (!parsed) throw new Error('Could not parse response. Please try again.')
@@ -291,12 +323,72 @@ Founder context: ${founderContext || 'Not provided'}`
     finally { setLoading(false) }
   }
 
-  async function generateFinancials() {
+  async function generateCostPrompts() {
     setLoading(true); setError(null)
     try {
       const raw = await callClaude(
+        `You are Sela, a business advisor who knows industry benchmarks deeply. Return ONLY valid JSON, no markdown.`,
+        `Based on this business idea, generate 4-6 cost prompts that are SPECIFIC to this type of business. Each prompt should guide the founder to understand and estimate one key cost driver. For product businesses use COGS % not flat inventory costs. Include industry benchmarks where helpful so the founder can self-calibrate.
+
+Return JSON with exactly this shape:
+{
+  "businessType": "2-3 word category e.g. 'Apparel Brand' or 'Fitness Studio' or 'SaaS Tool'",
+  "prompts": [
+    {
+      "key": "unique_key",
+      "label": "Short label for this cost e.g. 'Cost of Goods (COGS)'",
+      "question": "Plain-language question e.g. 'What does it cost you to make or acquire each item you sell?'",
+      "hint": "Industry context to help them calibrate e.g. 'Apparel brands typically run 35-45% COGS. A $60 t-shirt costs $21-$27 to produce.'",
+      "inputType": "percent" or "flat_monthly" or "flat_per_unit",
+      "suggestedValue": number or null,
+      "suggestedLabel": "e.g. '40% — industry standard for apparel' or null"
+    }
+  ]
+}
+
+Rules:
+- Use "percent" inputType for COGS, commission rates, royalties — anything naturally expressed as % of revenue
+- Use "flat_monthly" for rent, payroll, software, marketing
+- Use "flat_per_unit" for fulfillment, shipping, per-transaction costs
+- Always include a benchmark/hint — never leave the founder guessing without context
+- For product businesses: ALWAYS include a COGS prompt using percent inputType
+- Do NOT include a prompt for founder salary or named team salaries — those were captured earlier
+- 4 prompts minimum, 6 maximum
+
+Business idea: ${idea}
+Revenue types selected: ${(finInputs.revenueTypes || []).join(', ')}
+Founder context: ${founderContextSummary()}`
+      )
+      const parsed = parseJSON(raw)
+      if (!parsed) throw new Error('Could not parse cost prompts. Please try again.')
+      setCostPrompts(parsed)
+      setStep(1.6)
+    } catch(e) { setError(e.message) }
+    finally { setLoading(false) }
+  }
+
+  async function generateFinancials() {
+    setLoading(true); setError(null)
+    try {
+      // Build revenue summary
+      const streamNames = { subscription: 'Subscription/Recurring', perunit: 'Per Unit/Sale', project: 'Project/Contract', ticket: 'Ticket/Event', sponsorship: 'Sponsorship/Advertising', other: 'Other' }
+      const revenueDetail = (finInputs.revenueTypes || []).map(k => {
+        const s = finInputs.streams?.[k]
+        return `${streamNames[k]}: $${s?.price || 'unknown'} per unit, ~${s?.volume || 'unknown'} units/month`
+      }).join(' | ')
+
+      // Build contextual cost summary from AI-generated prompts
+      const costDetail = (costPrompts?.prompts || []).map(p => {
+        const val = finInputs.costs?.[p.key]
+        if (!val && val !== 0) return `${p.label}: not provided (use industry standard: ${p.suggestedLabel || 'unknown'})`
+        if (p.inputType === 'percent') return `${p.label}: ${val}% of revenue`
+        if (p.inputType === 'flat_per_unit') return `${p.label}: $${val} per unit`
+        return `${p.label}: $${val}/month`
+      }).join(' | ') || 'No costs provided — use industry-standard assumptions for this business type'
+
+      const raw = await callClaude(
         `You are Sela, an honest financial advisor. Be realistic — not pessimistic, not optimistic. Return ONLY valid JSON.`,
-        `Generate financial projections for this business. Return JSON with exactly this shape:
+        `Generate financial projections for this business. Use the cost inputs provided — where COGS % is given, apply it to projected revenue. Account for all people expecting to be paid. Return JSON with exactly this shape:
 {
   "year1Revenue": "$XXX,XXX",
   "year3Revenue": "$X,XXX,XXX",
@@ -308,10 +400,11 @@ Founder context: ${founderContext || 'Not provided'}`
 }
 
 Business idea: ${idea}
-Typical price point: $${finInputs.price}/month or per unit
-Expected first-year customers: ${finInputs.customers}
-Estimated startup capital available: $${finInputs.startup}
-Estimated monthly expenses: $${finInputs.expenses}`
+Business type: ${costPrompts?.businessType || 'unknown'}
+Revenue streams: ${revenueDetail}
+Startup capital available: $${finInputs.startup}
+Cost structure: ${costDetail}
+Founder context: ${founderContextSummary()}`
       )
       const parsed = parseJSON(raw)
       if (!parsed) throw new Error('Could not parse response. Please try again.')
@@ -345,7 +438,7 @@ Estimated monthly expenses: $${finInputs.expenses}`
 }
 
 Business idea: ${idea}
-Founder context: ${founderContext}
+Founder context: ${founderContextSummary()}
 Scorecard overall: ${scorecard?.overall}/100
 Biggest risk identified: ${scorecard?.biggestRisk}`
       )
@@ -373,6 +466,7 @@ Biggest risk identified: ${scorecard?.biggestRisk}`
 }
 
 Business idea: ${idea}
+Founder context: ${founderContextSummary()}
 Background: ${fitInputs.background}
 Time available: ${fitInputs.time}
 Capital available: ${fitInputs.capital}
@@ -411,6 +505,7 @@ Self-identified weakness: ${fitInputs.weakness}`
 }
 
 Business idea: ${idea}
+Founder context: ${founderContextSummary()}
 Scorecard: ${scorecard?.overall}/100 — ${scorecard?.overallVerdict}
 Biggest risk: ${scorecard?.biggestRisk}
 Board verdict: ${advisors?.boardVerdict}
@@ -427,11 +522,17 @@ Most important question: ${fit?.mostImportantQuestion}`
 
   function reset() {
     setStep(0); setIdea(''); setFounderContext(''); setScorecard(null)
-    setFinInputs({ price:'', customers:'', startup:'', expenses:'' }); setFinancials(null)
+    setFinInputs({ startup:'', revenueTypes:[], streams:{}, costs:{} }); setFinancials(null)
+    setCostPrompts(null)
     setAdvisors(null); setOpenAdvisor(null)
     setFitInputs({ background:'', time:'', capital:'', motivation:'', weakness:'' }); setFit(null)
     setVerdict(null); setError(null)
     setChosenPath(null); setOverrideReason(''); setPathResponse(null)
+    setFounderRole(''); setFounderGoal(''); setNeedsPay(''); setPayAmount('')
+    setTeamMembers([]); setInvestors([])
+    setShowAddTeam(false); setShowAddInvestor(false)
+    setNewTeamMember({ role:'', salary:'', expertise:'' })
+    setNewInvestor({ who:'', amount:'', expectations:'' })
   }
 
   async function generatePathResponse(path) {
@@ -566,10 +667,174 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
               <p className="field-hint">The more context you give, the more accurate the founder-market fit assessment will be.</p>
             </div>
             <div className="assess-actions">
+              <button className="btn-assess-primary" disabled={idea.trim().length < 20} onClick={() => setStep(0.5)}>
+                Next → <span></span>
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── STEP 0.5: FOUNDER CONTEXT ── */}
+        {step === 0.5 && (
+          <>
+            <h1 className="assess-heading">Before Sela scores it —<br /><em>a few things about you.</em></h1>
+            <p className="assess-sub">These questions shape everything. A business that works for a full-time solo operator looks very different from one that works for a part-time investor. Sela needs to know which one you are.</p>
+
+            {/* Role */}
+            <div className="field">
+              <label>What's your desired role in this business? *</label>
+              <div className="gate-options" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 0 }}>
+                {[
+                  { val: 'operator', title: 'Owner-operator', desc: 'You are the business. Hands-on, day-to-day.' },
+                  { val: 'owner',    title: 'Hands-on owner', desc: 'Involved, but not running daily operations.' },
+                  { val: 'investor', title: 'Investor',        desc: 'Financial stake. Minimal day-to-day role.' },
+                ].map(opt => (
+                  <button key={opt.val} className={`gate-option ${founderRole === opt.val ? 'selected' : ''}`} onClick={() => setFounderRole(opt.val)}>
+                    <div className="gate-option-title">{opt.title}</div>
+                    <div className="gate-option-desc">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Goal */}
+            <div className="field" style={{ marginTop: 28 }}>
+              <label>What's your primary goal? *</label>
+              <div className="gate-options" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 0 }}>
+                {[
+                  { val: 'primary',  title: 'Primary income',    desc: 'This needs to replace or become your main income.' },
+                  { val: 'parttime', title: 'Part-time income',  desc: 'Supplemental. You have other income.' },
+                  { val: 'equity',   title: 'Future equity value', desc: 'Building to sell. Income is secondary.' },
+                ].map(opt => (
+                  <button key={opt.val} className={`gate-option ${founderGoal === opt.val ? 'selected' : ''}`} onClick={() => setFounderGoal(opt.val)}>
+                    <div className="gate-option-title">{opt.title}</div>
+                    <div className="gate-option-desc">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Pay in 12 months */}
+            <div className="field" style={{ marginTop: 28 }}>
+              <label>Do you need to get paid in the first 12 months? *</label>
+              <div className="gate-options" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 0 }}>
+                <button className={`gate-option ${needsPay === 'yes' ? 'selected' : ''}`} onClick={() => setNeedsPay('yes')}>
+                  <div className="gate-option-title">Yes</div>
+                  <div className="gate-option-desc">I need income from this business within the first year.</div>
+                </button>
+                <button className={`gate-option ${needsPay === 'no' ? 'selected' : ''}`} onClick={() => setNeedsPay('no')}>
+                  <div className="gate-option-title">No</div>
+                  <div className="gate-option-desc">I can work the hours I've committed without drawing pay in year one.</div>
+                </button>
+              </div>
+              {needsPay === 'yes' && (
+                <div className="field" style={{ marginTop: 16 }}>
+                  <label>How much per month do you need? *</label>
+                  <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="e.g. 5000" />
+                </div>
+              )}
+            </div>
+
+            {/* Team members */}
+            <div className="field" style={{ marginTop: 28 }}>
+              <label>Is anyone else involved who expects to be paid?</label>
+              {teamMembers.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  {teamMembers.map((t, i) => (
+                    <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', background:'white', border:'1px solid var(--border)', borderRadius:2, marginBottom:8 }}>
+                      <div>
+                        <span style={{ fontWeight:500, fontSize:14 }}>{t.role}</span>
+                        <span style={{ color:'var(--muted)', fontSize:13, marginLeft:12 }}>${t.salary}/mo · {t.expertise}</span>
+                      </div>
+                      <button onClick={() => setTeamMembers(prev => prev.filter((_,j) => j !== i))} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!showAddTeam ? (
+                <button className="btn-assess-back" onClick={() => setShowAddTeam(true)}>+ Add a person</button>
+              ) : (
+                <div style={{ background:'var(--paper-deep)', border:'1px solid var(--border)', borderRadius:4, padding:20, marginTop:8 }}>
+                  <div className="fin-grid" style={{ marginBottom:12 }}>
+                    <div className="field" style={{ marginBottom:0 }}>
+                      <label>Role / title</label>
+                      <input value={newTeamMember.role} onChange={e => setNewTeamMember(p => ({...p, role: e.target.value}))} placeholder="e.g. Head of Operations" />
+                    </div>
+                    <div className="field" style={{ marginBottom:0 }}>
+                      <label>Expected monthly salary ($)</label>
+                      <input type="number" value={newTeamMember.salary} onChange={e => setNewTeamMember(p => ({...p, salary: e.target.value}))} placeholder="e.g. 8000" />
+                    </div>
+                  </div>
+                  <div className="field" style={{ marginBottom:12 }}>
+                    <label>Their expertise / background</label>
+                    <input value={newTeamMember.expertise} onChange={e => setNewTeamMember(p => ({...p, expertise: e.target.value}))} placeholder="e.g. 10 years restaurant operations" />
+                  </div>
+                  <div style={{ display:'flex', gap:12 }}>
+                    <button className="btn-assess-primary" style={{ padding:'10px 20px', fontSize:12 }}
+                      disabled={!newTeamMember.role || !newTeamMember.salary}
+                      onClick={() => { setTeamMembers(p => [...p, newTeamMember]); setNewTeamMember({ role:'', salary:'', expertise:'' }); setShowAddTeam(false) }}>
+                      Add
+                    </button>
+                    <button className="btn-assess-back" onClick={() => setShowAddTeam(false)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Investors */}
+            <div className="field" style={{ marginTop: 12 }}>
+              <label>Is anyone else putting money into the business?</label>
+              {investors.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  {investors.map((inv, i) => (
+                    <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', background:'white', border:'1px solid var(--border)', borderRadius:2, marginBottom:8 }}>
+                      <div>
+                        <span style={{ fontWeight:500, fontSize:14 }}>{inv.who}</span>
+                        <span style={{ color:'var(--muted)', fontSize:13, marginLeft:12 }}>${inv.amount} · expects: {inv.expectations}</span>
+                      </div>
+                      <button onClick={() => setInvestors(prev => prev.filter((_,j) => j !== i))} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!showAddInvestor ? (
+                <button className="btn-assess-back" onClick={() => setShowAddInvestor(true)}>+ Add an investor</button>
+              ) : (
+                <div style={{ background:'var(--paper-deep)', border:'1px solid var(--border)', borderRadius:4, padding:20, marginTop:8 }}>
+                  <div className="fin-grid" style={{ marginBottom:12 }}>
+                    <div className="field" style={{ marginBottom:0 }}>
+                      <label>Who (name or description)</label>
+                      <input value={newInvestor.who} onChange={e => setNewInvestor(p => ({...p, who: e.target.value}))} placeholder="e.g. Silent partner / Family member" />
+                    </div>
+                    <div className="field" style={{ marginBottom:0 }}>
+                      <label>Amount investing ($)</label>
+                      <input type="number" value={newInvestor.amount} onChange={e => setNewInvestor(p => ({...p, amount: e.target.value}))} placeholder="e.g. 50000" />
+                    </div>
+                  </div>
+                  <div className="field" style={{ marginBottom:12 }}>
+                    <label>What do they expect in return?</label>
+                    <input value={newInvestor.expectations} onChange={e => setNewInvestor(p => ({...p, expectations: e.target.value}))} placeholder="e.g. 20% equity / monthly distributions / repayment in 3 years" />
+                  </div>
+                  <div style={{ display:'flex', gap:12 }}>
+                    <button className="btn-assess-primary" style={{ padding:'10px 20px', fontSize:12 }}
+                      disabled={!newInvestor.who || !newInvestor.amount}
+                      onClick={() => { setInvestors(p => [...p, newInvestor]); setNewInvestor({ who:'', amount:'', expectations:'' }); setShowAddInvestor(false) }}>
+                      Add
+                    </button>
+                    <button className="btn-assess-back" onClick={() => setShowAddInvestor(false)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="assess-actions" style={{ marginTop: 40 }}>
+              <button className="btn-assess-back" onClick={() => setStep(0)}>← Back</button>
               {loading
                 ? <LoadingState label="Scoring your idea..." sub="Evaluating 8 dimensions of viability" />
-                : <button className="btn-assess-primary" disabled={idea.trim().length < 20} onClick={generateScorecard}>
-                    Get my scorecard <span>→</span>
+                : <button className="btn-assess-primary"
+                    disabled={!founderRole || !founderGoal || !needsPay || (needsPay === 'yes' && !payAmount)}
+                    onClick={generateScorecard}>
+                    Get my scorecard →
                   </button>
               }
             </div>
@@ -612,9 +877,9 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
             </div>
 
             <div className="assess-actions">
-              <button className="btn-assess-back" onClick={() => setStep(0)}>← Back</button>
+              <button className="btn-assess-back" onClick={() => setStep(0.5)}>← Back</button>
               {loading
-                ? <LoadingState label="Analysing the financials..." sub="Building Year 1 and Year 3 projections" />
+                ? <LoadingState label="Preparing your financial questions..." sub="Sela is tailoring cost prompts to your business" />
                 : <button className="btn-assess-primary" onClick={() => setStep(1.5)}>
                     Continue to financials →
                   </button>
@@ -623,35 +888,138 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
           </>
         )}
 
-        {/* ── STEP 1.5: FINANCIAL INPUTS ── */}
+        {/* ── STEP 1.5: REVENUE STREAMS ── */}
         {step === 1.5 && (
           <>
-            <h1 className="assess-heading">Financial<br /><em>reality check.</em></h1>
-            <p className="assess-sub">Four quick questions. Sela will build Year 1 and Year 3 projections and tell you the financial truth most advisors won't say out loud.</p>
-            <div className="fin-grid">
-              <div className="field">
-                <label>Price per customer ($/month or per sale) *</label>
-                <input type="number" value={finInputs.price} onChange={e => setFinInputs(p => ({...p, price: e.target.value}))} placeholder="e.g. 250" />
-              </div>
-              <div className="field">
-                <label>Target customers in Year 1 *</label>
-                <input type="number" value={finInputs.customers} onChange={e => setFinInputs(p => ({...p, customers: e.target.value}))} placeholder="e.g. 100" />
-              </div>
-              <div className="field">
-                <label>Startup capital available ($) *</label>
-                <input type="number" value={finInputs.startup} onChange={e => setFinInputs(p => ({...p, startup: e.target.value}))} placeholder="e.g. 150000" />
-              </div>
-              <div className="field">
-                <label>Estimated monthly expenses ($) *</label>
-                <input type="number" value={finInputs.expenses} onChange={e => setFinInputs(p => ({...p, expenses: e.target.value}))} placeholder="e.g. 15000" />
-              </div>
+            <h1 className="assess-heading">How does this<br /><em>business make money?</em></h1>
+            <p className="assess-sub">Select every revenue stream that applies. You can have more than one.</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 20 }}>
+              {[
+                { key: 'subscription', label: 'Subscription / Recurring', hint: 'Monthly or annual recurring fee' },
+                { key: 'perunit',      label: 'Per Unit / Per Sale',       hint: 'One-time payment per transaction' },
+                { key: 'project',      label: 'Project / Contract',        hint: 'Fixed fee per engagement' },
+                { key: 'ticket',       label: 'Ticket / Event',            hint: 'Event-based revenue' },
+                { key: 'sponsorship',  label: 'Sponsorship / Advertising', hint: 'Brand partnerships or ad revenue' },
+                { key: 'other',        label: 'Other',                     hint: 'Royalties, commissions, etc.' },
+              ].map(rt => (
+                <button key={rt.key}
+                  className={`gate-option ${(finInputs.revenueTypes || []).includes(rt.key) ? 'selected' : ''}`}
+                  style={{ padding: '16px 14px' }}
+                  onClick={() => setFinInputs(p => {
+                    const current = p.revenueTypes || []
+                    const updated = current.includes(rt.key) ? current.filter(k => k !== rt.key) : [...current, rt.key]
+                    return { ...p, revenueTypes: updated }
+                  })}>
+                  <div className="gate-option-title" style={{ fontSize: 14, marginBottom: 4 }}>{rt.label}</div>
+                  <div className="gate-option-desc" style={{ fontSize: 12 }}>{rt.hint}</div>
+                </button>
+              ))}
             </div>
+
+            {(finInputs.revenueTypes || []).length > 0 && (
+              <div style={{ background: 'var(--paper-deep)', border: '1px solid var(--border)', borderRadius: 4, padding: 20, marginBottom: 28 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 16 }}>For each stream — give Sela a ballpark</div>
+                {[
+                  { key: 'subscription', label: 'Subscription / Recurring' },
+                  { key: 'perunit',      label: 'Per Unit / Per Sale' },
+                  { key: 'project',      label: 'Project / Contract' },
+                  { key: 'ticket',       label: 'Ticket / Event' },
+                  { key: 'sponsorship',  label: 'Sponsorship / Advertising' },
+                  { key: 'other',        label: 'Other revenue' },
+                ].filter(rt => (finInputs.revenueTypes || []).includes(rt.key)).map(rt => (
+                  <div key={rt.key} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)', marginBottom: 10 }}>{rt.label}</div>
+                    <div className="fin-grid" style={{ marginBottom: 0 }}>
+                      <div className="field" style={{ marginBottom: 0 }}>
+                        <label>Price per unit / per customer ($)</label>
+                        <input type="number" placeholder="e.g. 250"
+                          value={finInputs.streams?.[rt.key]?.price || ''}
+                          onChange={e => setFinInputs(p => ({ ...p, streams: { ...p.streams, [rt.key]: { ...p.streams?.[rt.key], price: e.target.value } } }))} />
+                      </div>
+                      <div className="field" style={{ marginBottom: 0 }}>
+                        <label>Expected volume per month</label>
+                        <input type="number" placeholder="e.g. 50"
+                          value={finInputs.streams?.[rt.key]?.volume || ''}
+                          onChange={e => setFinInputs(p => ({ ...p, streams: { ...p.streams, [rt.key]: { ...p.streams?.[rt.key], volume: e.target.value } } }))} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="assess-actions">
               <button className="btn-assess-back" onClick={() => setStep(1)}>← Back</button>
               {loading
+                ? <LoadingState label="Tailoring cost questions to your business..." sub="Sela is pulling industry benchmarks" />
+                : <button className="btn-assess-primary"
+                    disabled={!(finInputs.revenueTypes?.length > 0)}
+                    onClick={generateCostPrompts}>
+                    Next: costs & capital →
+                  </button>
+              }
+            </div>
+          </>
+        )}
+
+        {/* ── STEP 1.6: AI-GENERATED COST PROMPTS ── */}
+        {step === 1.6 && costPrompts && (
+          <>
+            <h1 className="assess-heading">Now — your<br /><em>costs & capital.</em></h1>
+            <p className="assess-sub">
+              Sela identified this as a <strong>{costPrompts.businessType}</strong>. These questions are specific to your business type. Estimates are fine — Sela will fill in industry standards where you're unsure.
+            </p>
+
+            <div className="field">
+              <label>Startup capital available ($) *</label>
+              <input type="number" value={finInputs.startup} onChange={e => setFinInputs(p => ({...p, startup: e.target.value}))} placeholder="e.g. 150000" />
+              <p className="field-hint">Total money available to launch — yours plus any investors you listed earlier.</p>
+            </div>
+
+            <div style={{ marginBottom: 28 }}>
+              {costPrompts.prompts.map(p => (
+                <div key={p.key} style={{ marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)', marginBottom: 4 }}>{p.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 300, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.6 }}>{p.question}</div>
+                  {p.hint && (
+                    <div style={{ background: 'var(--paper-deep)', border: '1px solid var(--border)', borderLeft: '3px solid var(--clay)', borderRadius: 3, padding: '10px 14px', fontSize: 12, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.6 }}>
+                      💡 {p.hint}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <input
+                      type="number"
+                      placeholder={p.suggestedValue != null ? `Suggested: ${p.suggestedValue}${p.inputType === 'percent' ? '%' : ''}` : 'Enter amount'}
+                      style={{ flex: 1, background: 'white', border: '1px solid var(--border)', borderRadius: 2, padding: '12px 14px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--ink)', outline: 'none' }}
+                      value={finInputs.costs?.[p.key] ?? ''}
+                      onChange={e => setFinInputs(prev => ({ ...prev, costs: { ...prev.costs, [p.key]: e.target.value } }))}
+                    />
+                    <span style={{ fontSize: 13, color: 'var(--muted)', flexShrink: 0 }}>
+                      {p.inputType === 'percent' ? '% of revenue' : p.inputType === 'flat_per_unit' ? '$ per unit' : '$ / month'}
+                    </span>
+                    {p.suggestedValue != null && (
+                      <button
+                        className="btn-assess-back"
+                        style={{ flexShrink: 0, padding: '12px 16px', fontSize: 12 }}
+                        onClick={() => setFinInputs(prev => ({ ...prev, costs: { ...prev.costs, [p.key]: p.suggestedValue } }))}>
+                        Use {p.suggestedValue}{p.inputType === 'percent' ? '%' : ''}
+                      </button>
+                    )}
+                  </div>
+                  {p.suggestedLabel && (
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>{p.suggestedLabel}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="assess-actions">
+              <button className="btn-assess-back" onClick={() => setStep(1.5)}>← Back</button>
+              {loading
                 ? <LoadingState label="Building your projections..." sub="Year 1, Year 3, break-even analysis" />
                 : <button className="btn-assess-primary"
-                    disabled={!finInputs.price || !finInputs.customers || !finInputs.startup || !finInputs.expenses}
+                    disabled={!finInputs.startup}
                     onClick={generateFinancials}>
                     Show me the numbers →
                   </button>
@@ -689,7 +1057,7 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
             </div>
 
             <div className="assess-actions">
-              <button className="btn-assess-back" onClick={() => setStep(1.5)}>← Back</button>
+              <button className="btn-assess-back" onClick={() => setStep(1.6)}>← Back</button>
               {loading
                 ? <LoadingState label="Assembling your advisory board..." sub="5 advisors reviewing your idea" />
                 : <button className="btn-assess-primary" onClick={generateAdvisors}>
