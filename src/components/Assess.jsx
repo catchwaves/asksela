@@ -132,6 +132,41 @@ const styles = `
 
   /* ERROR */
   .error-box { background: rgba(180,80,70,0.08); border: 1px solid rgba(180,80,70,0.25); border-radius: 4px; padding: 20px 24px; margin-bottom: 24px; font-size: 14px; color: #8B3A34; line-height: 1.6; }
+
+  /* DECISION GATE */
+  .gate-wrap { margin-top: 48px; padding-top: 48px; border-top: 1px solid var(--border); }
+  .gate-question { font-family: var(--font-display); font-size: 28px; font-weight: 300; color: var(--ink); margin-bottom: 8px; line-height: 1.2; }
+  .gate-sub { font-size: 14px; font-weight: 300; color: var(--muted); margin-bottom: 32px; }
+  .gate-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .gate-option { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 28px 24px; cursor: pointer; transition: all 0.2s; text-align: left; font-family: var(--font-body); width: 100%; }
+  .gate-option:hover { border-color: var(--clay); box-shadow: 0 4px 20px rgba(200,132,90,0.12); transform: translateY(-2px); }
+  .gate-option-icon { font-size: 22px; margin-bottom: 14px; display: block; }
+  .gate-option-title { font-family: var(--font-display); font-size: 20px; font-weight: 500; color: var(--ink); margin-bottom: 8px; }
+  .gate-option-desc { font-size: 13px; font-weight: 300; color: var(--ink-soft); line-height: 1.6; }
+
+  /* OVERRIDE LOG */
+  .override-wrap { margin-top: 24px; background: var(--paper-deep); border: 1px solid var(--border); border-radius: 4px; padding: 24px; border-left: 3px solid var(--clay); }
+  .override-label { font-size: 11px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--clay); margin-bottom: 10px; }
+  .override-prompt { font-size: 14px; font-weight: 300; color: var(--ink-soft); margin-bottom: 16px; line-height: 1.6; }
+
+  /* PATH RESPONSE */
+  .path-response { margin-top: 8px; }
+  .path-mode-banner { border-radius: 4px; padding: 28px 32px; margin-bottom: 28px; }
+  .path-mode-banner.support { background: var(--sage); }
+  .path-mode-banner.adjust { background: var(--ink); }
+  .path-mode-banner.explore { background: var(--clay); }
+  .path-mode-label { font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.6); margin-bottom: 10px; }
+  .path-mode-title { font-family: var(--font-display); font-size: 28px; font-weight: 300; color: white; margin-bottom: 10px; }
+  .path-mode-sub { font-size: 14px; font-weight: 300; color: rgba(255,255,255,0.75); line-height: 1.65; }
+  .path-action-list { list-style: none; display: flex; flex-direction: column; gap: 0; margin-bottom: 28px; }
+  .path-action-item { display: flex; gap: 20px; padding: 20px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .path-action-num { font-family: var(--font-display); font-size: 32px; font-weight: 300; color: var(--clay); line-height: 1; flex-shrink: 0; width: 36px; }
+  .path-action-body { flex: 1; padding-top: 4px; }
+  .path-action-title { font-size: 14px; font-weight: 500; color: var(--ink); margin-bottom: 4px; }
+  .path-action-text { font-size: 14px; font-weight: 300; color: var(--ink-soft); line-height: 1.65; }
+  .path-sela-note { background: var(--ink); border-radius: 4px; padding: 28px; }
+  .path-sela-note-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--clay); margin-bottom: 12px; }
+  .path-sela-note-text { font-family: var(--font-display); font-size: 20px; font-style: italic; color: rgba(247,242,234,0.9); line-height: 1.55; }
 `
 
 const ADVISOR_COLORS = {
@@ -207,6 +242,11 @@ export default function Assess() {
 
   // Step 6 — verdict
   const [verdict, setVerdict]     = useState(null)
+
+  // Post-verdict gate
+  const [chosenPath, setChosenPath]         = useState(null)
+  const [overrideReason, setOverrideReason] = useState('')
+  const [pathResponse, setPathResponse]     = useState(null)
 
   useEffect(() => {
     const el = document.createElement('style')
@@ -391,6 +431,81 @@ Most important question: ${fit?.mostImportantQuestion}`
     setAdvisors(null); setOpenAdvisor(null)
     setFitInputs({ background:'', time:'', capital:'', motivation:'', weakness:'' }); setFit(null)
     setVerdict(null); setError(null)
+    setChosenPath(null); setOverrideReason(''); setPathResponse(null)
+  }
+
+  async function generatePathResponse(path) {
+    setLoading(true); setError(null)
+    try {
+      const systemPrompts = {
+        proceed: `You are Sela. The founder has decided to proceed despite your ADJUST or PAUSE verdict. You respect their decision — you are now fully in their corner. No more re-litigating. Give them the most useful support you can. Return ONLY valid JSON.`,
+        adjust:  `You are Sela. The founder wants to adjust their idea based on your feedback. Help them identify the specific changes that would most improve the viability. Be concrete and actionable. Return ONLY valid JSON.`,
+        explore: `You are Sela. The founder wants to explore alternative directions. Based on their strengths and the core of what they were trying to do, suggest 2-3 adjacent alternatives worth considering. Return ONLY valid JSON.`,
+      }
+
+      const userPrompts = {
+        proceed: `The founder is proceeding with the idea despite the ${verdict?.verdict} verdict. ${overrideReason ? `Their reason: "${overrideReason}"` : ''}
+Now give them your full support. Return JSON with this shape:
+{
+  "modeTitle": "short title for this support mode",
+  "modeSub": "1-2 sentences: Sela acknowledging the decision and committing to support",
+  "actions": [
+    {"title": "action title", "detail": "specific, concrete action they should take first — 2 sentences"},
+    {"title": "action title", "detail": "specific action"},
+    {"title": "action title", "detail": "specific action"},
+    {"title": "action title", "detail": "specific action"}
+  ],
+  "selaNote": "Sela's final note — direct, warm, committed. 2 sentences. No hedging, no re-litigating the verdict."
+}
+Business idea: ${idea}
+Verdict was: ${verdict?.verdict} — ${verdict?.reasoning}
+Biggest obstacle: ${verdict?.obstacles?.[0]?.obstacle}`,
+
+        adjust: `The founder wants to adjust their idea to improve the assessment. 
+Return JSON with this shape:
+{
+  "modeTitle": "short title",
+  "modeSub": "1-2 sentences: what adjusting means and what's possible",
+  "actions": [
+    {"title": "specific change to make", "detail": "exactly what to change and why it improves viability — 2 sentences"},
+    {"title": "specific change to make", "detail": "exactly what to change"},
+    {"title": "specific change to make", "detail": "exactly what to change"},
+    {"title": "specific change to make", "detail": "what to validate before rebuilding"}
+  ],
+  "selaNote": "If they make these changes, what would Sela's revised verdict likely be? Be honest and specific."
+}
+Business idea: ${idea}
+Scorecard: ${scorecard?.overall}/100
+Biggest risk: ${scorecard?.biggestRisk}
+What needs to change: ${verdict?.adjustments}
+Board concern: ${advisors?.advisors?.find(a => a.stance === 'STOP' || a.stance === 'CAUTION')?.concernedAbout || 'various concerns'}`,
+
+        explore: `The founder wants to explore alternative ideas based on their strengths and interests.
+Return JSON with this shape:
+{
+  "modeTitle": "short title",
+  "modeSub": "1-2 sentences: acknowledging the pivot and what Sela sees in their strengths",
+  "actions": [
+    {"title": "Alternative idea 1 name", "detail": "What it is, why it fits this founder's strengths, and what makes it more viable than the original — 2-3 sentences"},
+    {"title": "Alternative idea 2 name", "detail": "What it is, why it fits, what makes it viable"},
+    {"title": "Alternative idea 3 name", "detail": "What it is, why it fits, what makes it viable"},
+    {"title": "How to choose between them", "detail": "Specific criteria for picking one of these alternatives to pursue first"}
+  ],
+  "selaNote": "Which alternative Sela thinks is strongest and why — direct, one sentence each."
+}
+Original idea: ${idea}
+Founder strengths: ${fit?.strengths}
+Founder background: ${fitInputs.background}
+What was viable in the original: ${scorecard?.strongestPoint}`,
+      }
+
+      const raw = await callClaude(systemPrompts[path], userPrompts[path])
+      const parsed = parseJSON(raw)
+      if (!parsed) throw new Error('Could not parse response. Please try again.')
+      setPathResponse(parsed)
+      setStep(6)
+    } catch(e) { setError(e.message) }
+    finally { setLoading(false) }
   }
 
   // ── Render helpers ─────────────────────────────────────────────
@@ -744,7 +859,94 @@ Most important question: ${fit?.mostImportantQuestion}`
               ))}
             </div>
 
-            <button className="restart-btn" onClick={reset}>← Assess another idea</button>
+            {/* DECISION GATE */}
+            <div className="gate-wrap">
+              <div className="gate-question">Now that you know — what do you want to do?</div>
+              <div className="gate-sub">Sela's support changes based on your decision. All three paths lead somewhere useful.</div>
+              <div className="gate-options">
+                <button className={`gate-option ${chosenPath === 'proceed' ? 'selected' : ''}`} onClick={() => setChosenPath('proceed')}>
+                  <span className="gate-option-icon">→</span>
+                  <div className="gate-option-title">Proceed anyway</div>
+                  <div className="gate-option-desc">You've heard Sela's concerns. You're going forward. She'll stop re-litigating and give you her full support.</div>
+                </button>
+                <button className={`gate-option ${chosenPath === 'adjust' ? 'selected' : ''}`} onClick={() => setChosenPath('adjust')}>
+                  <span className="gate-option-icon">⟲</span>
+                  <div className="gate-option-title">Adjust the idea</div>
+                  <div className="gate-option-desc">Something here is worth saving. Sela will tell you exactly what to change to improve the assessment.</div>
+                </button>
+                <button className={`gate-option ${chosenPath === 'explore' ? 'selected' : ''}`} onClick={() => setChosenPath('explore')}>
+                  <span className="gate-option-icon">◎</span>
+                  <div className="gate-option-title">Explore alternatives</div>
+                  <div className="gate-option-desc">This idea isn't the one. Sela will suggest adjacent directions that fit your strengths better.</div>
+                </button>
+              </div>
+
+              {/* Override log — only shown when proceeding against a non-GO verdict */}
+              {chosenPath === 'proceed' && verdict.verdict !== 'GO' && (
+                <div className="override-wrap">
+                  <div className="override-label">Override log</div>
+                  <div className="override-prompt">Sela's verdict was <strong>{verdict.verdict}</strong>. Before she commits to supporting you, she's asking you to write down why you're proceeding. This isn't a test — it converts an unconscious decision into a conscious one.</div>
+                  <div className="field" style={{ marginBottom: 16 }}>
+                    <textarea
+                      rows={3}
+                      value={overrideReason}
+                      onChange={e => setOverrideReason(e.target.value)}
+                      placeholder="I'm proceeding because..."
+                    />
+                  </div>
+                </div>
+              )}
+
+              {chosenPath && (
+                <div className="assess-actions" style={{ marginTop: 24 }}>
+                  {loading
+                    ? <LoadingState
+                        label={chosenPath === 'proceed' ? 'Switching to support mode...' : chosenPath === 'adjust' ? 'Finding the adjustments...' : 'Exploring alternatives...'}
+                        sub="Sela is updating her approach"
+                      />
+                    : <button
+                        className="btn-assess-primary"
+                        disabled={chosenPath === 'proceed' && verdict.verdict !== 'GO' && overrideReason.trim().length < 10}
+                        onClick={() => generatePathResponse(chosenPath)}
+                      >
+                        {chosenPath === 'proceed' ? "Let's do this →" : chosenPath === 'adjust' ? 'Show me what to change →' : 'Show me alternatives →'}
+                      </button>
+                  }
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── STEP 6: PATH RESPONSE ── */}
+        {step === 6 && pathResponse && (
+          <>
+            <div className={`path-mode-banner ${chosenPath === 'proceed' ? 'support' : chosenPath === 'adjust' ? 'adjust' : 'explore'}`}>
+              <div className="path-mode-label">
+                {chosenPath === 'proceed' ? 'Active Support Mode' : chosenPath === 'adjust' ? 'Adjustment Plan' : 'Alternative Paths'}
+              </div>
+              <div className="path-mode-title">{pathResponse.modeTitle}</div>
+              <div className="path-mode-sub">{pathResponse.modeSub}</div>
+            </div>
+
+            <ul className="path-action-list">
+              {pathResponse.actions.map((a, i) => (
+                <li className="path-action-item" key={i}>
+                  <div className="path-action-num">{i + 1}</div>
+                  <div className="path-action-body">
+                    <div className="path-action-title">{a.title}</div>
+                    <div className="path-action-text">{a.detail}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <div className="path-sela-note">
+              <div className="path-sela-note-label">Sela's note</div>
+              <div className="path-sela-note-text">"{pathResponse.selaNote}"</div>
+            </div>
+
+            <button className="restart-btn" onClick={reset} style={{ marginTop: 40 }}>← Assess another idea</button>
           </>
         )}
 
