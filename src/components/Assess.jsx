@@ -700,8 +700,30 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
       if (!parsed) throw new Error('Could not parse response. Please try again.')
       setPathResponse(parsed)
       setStep(6)
+      // Save to Supabase if user is signed in — silent, non-blocking
+      if (user) {
+        saveAssessment(parsed, path)
+      }
     } catch(e) { setError(e.message) }
     finally { setLoading(false) }
+  }
+
+  async function saveAssessment(pathResponseData, path) {
+    try {
+      await supabase.from('assessments').insert({
+        user_id:       user.id,
+        idea:          idea,
+        scorecard:     scorecard,
+        financials:    financials,
+        advisors:      advisors,
+        fit:           fit,
+        verdict:       verdict,
+        path_response: { ...pathResponseData, chosenPath: path },
+      })
+    } catch(e) {
+      // Silent fail — don't interrupt the user experience if save fails
+      console.error('Assessment save failed:', e)
+    }
   }
 
   // ── Render helpers ─────────────────────────────────────────────
