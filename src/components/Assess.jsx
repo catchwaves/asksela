@@ -180,6 +180,26 @@ const styles = `
   .path-sela-note { background: var(--ink); border-radius: 4px; padding: 28px; }
   .path-sela-note-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--clay); margin-bottom: 12px; }
   .path-sela-note-text { font-family: var(--font-display); font-size: 20px; font-style: italic; color: rgba(247,242,234,0.9); line-height: 1.55; }
+
+  /* SUBSCRIBE GATE */
+  .subscribe-gate { max-width: 520px; margin: 0 auto; text-align: center; padding: 80px 0; }
+  .subscribe-gate-icon { font-size: 40px; margin-bottom: 24px; }
+  .subscribe-gate-heading { font-family: var(--font-display); font-size: clamp(28px,4vw,40px); font-weight: 300; color: var(--ink); margin-bottom: 16px; line-height: 1.2; }
+  .subscribe-gate-heading em { font-style: italic; color: var(--clay); }
+  .subscribe-gate-sub { font-size: 15px; font-weight: 300; color: var(--ink-soft); margin-bottom: 40px; line-height: 1.7; }
+  .subscribe-gate-what { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 28px; margin-bottom: 32px; text-align: left; }
+  .subscribe-gate-what-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+  .subscribe-gate-feature { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .subscribe-gate-feature:last-child { border-bottom: none; padding-bottom: 0; }
+  .subscribe-gate-feature-icon { color: var(--sage); font-size: 15px; flex-shrink: 0; margin-top: 2px; }
+  .subscribe-gate-feature-text { font-size: 14px; font-weight: 300; color: var(--ink-soft); line-height: 1.5; }
+  .subscribe-gate-notify { display: flex; gap: 10px; margin-bottom: 16px; }
+  .subscribe-gate-notify input { flex: 1; background: white; border: 1px solid var(--border); border-radius: 2px; padding: 14px 16px; font-family: var(--font-body); font-size: 14px; color: var(--ink); outline: none; transition: border-color 0.2s; }
+  .subscribe-gate-notify input:focus { border-color: var(--clay); }
+  .subscribe-gate-notify input::placeholder { color: var(--muted); }
+  .subscribe-gate-submitted { background: rgba(92,122,98,0.1); border: 1px solid rgba(92,122,98,0.3); border-radius: 4px; padding: 16px; font-size: 14px; color: var(--sage); margin-bottom: 16px; }
+  .subscribe-gate-back { background: none; border: none; font-size: 13px; color: var(--muted); cursor: pointer; text-decoration: underline; padding: 8px 0; display: block; margin: 0 auto; }
+  .subscribe-gate-back:hover { color: var(--ink); }
 `
 
 const ADVISOR_COLORS = {
@@ -268,6 +288,21 @@ export default function Assess() {
   const [chosenPath, setChosenPath]         = useState(null)
   const [overrideReason, setOverrideReason] = useState('')
   const [pathResponse, setPathResponse]     = useState(null)
+
+  // ── Credits / subscription architecture ──────────────────────
+  // assessmentCount persists in localStorage so refreshing doesn't reset it.
+  // isSubscribed is always false for now — flipped to true when Stripe is live.
+  // showSubscribeGate controls whether the paywall screen is visible.
+  const [assessmentCount, setAssessmentCount] = useState(() => {
+    try { return parseInt(localStorage.getItem('sela_assessment_count') || '0', 10) } catch { return 0 }
+  })
+  const [isSubscribed]      = useState(false)
+  const [showSubscribeGate, setShowSubscribeGate] = useState(false)
+  const [notifyEmail, setNotifyEmail]        = useState('')
+  const [notifySubmitted, setNotifySubmitted] = useState(false)
+
+  // Gate check: second+ assessment, not subscribed, trying to move to Financials
+  const isGated = assessmentCount >= 1 && !isSubscribed
 
   useEffect(() => {
     const el = document.createElement('style')
@@ -551,6 +586,11 @@ Most important question: ${fit?.mostImportantQuestion}`
   }
 
   function reset() {
+    // Increment count so second assessment triggers the gate
+    const newCount = assessmentCount + 1
+    setAssessmentCount(newCount)
+    try { localStorage.setItem('sela_assessment_count', String(newCount)) } catch {}
+
     setStep(0); setIdea(''); setFounderContext(''); setScorecard(null)
     setFinInputs({ startup:'', revenueTypes:[], streams:{}, costs:{} }); setFinancials(null)
     setCostPrompts(null)
@@ -564,6 +604,7 @@ Most important question: ${fit?.mostImportantQuestion}`
     setShowAddTeam(false); setShowAddInvestor(false)
     setNewTeamMember({ role:'', salary:'', expertise:'' })
     setNewInvestor({ who:'', amount:'', expectations:'' })
+    setShowSubscribeGate(false); setNotifyEmail(''); setNotifySubmitted(false)
   }
 
   async function generatePathResponse(path) {
@@ -986,7 +1027,7 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
                 ? <LoadingState label="Tailoring cost questions to your business..." sub="Sela is pulling industry benchmarks" />
                 : <button className="btn-assess-primary"
                     disabled={!(finInputs.revenueTypes?.length > 0)}
-                    onClick={generateCostPrompts}>
+                    onClick={() => isGated ? setShowSubscribeGate(true) : generateCostPrompts()}>
                     Next: costs & capital →
                   </button>
               }
@@ -1395,6 +1436,61 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
               <button className="restart-btn" onClick={reset}>Assess another idea</button>
             </div>
           </>
+        )}
+
+        {/* ── SUBSCRIBE GATE ── */}
+        {showSubscribeGate && (
+          <div className="subscribe-gate">
+            <div className="subscribe-gate-icon">◎</div>
+            <h2 className="subscribe-gate-heading">
+              You've seen what<br /><em>Sela can do.</em>
+            </h2>
+            <p className="subscribe-gate-sub">
+              Your first full assessment is free. To run another idea through financials, advisors, and the full verdict, Ask Sela subscriptions are coming soon.
+            </p>
+
+            <div className="subscribe-gate-what">
+              <div className="subscribe-gate-what-label">What's included</div>
+              {[
+                'Unlimited idea assessments — run as many as you need',
+                'Full financial projections with industry benchmarks',
+                'All 5 advisor perspectives with follow-up Q&A',
+                'Founder fit scoring and gap analysis',
+                'Verdict + full path response (proceed / adjust / explore)',
+              ].map((f, i) => (
+                <div className="subscribe-gate-feature" key={i}>
+                  <span className="subscribe-gate-feature-icon">✓</span>
+                  <span className="subscribe-gate-feature-text">{f}</span>
+                </div>
+              ))}
+            </div>
+
+            {notifySubmitted ? (
+              <div className="subscribe-gate-submitted">
+                ✓ Got it — we'll email you when subscriptions launch.
+              </div>
+            ) : (
+              <div className="subscribe-gate-notify">
+                <input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={notifyEmail}
+                  onChange={e => setNotifyEmail(e.target.value)}
+                />
+                <button
+                  className="btn-assess-primary"
+                  disabled={!notifyEmail.includes('@')}
+                  onClick={() => setNotifySubmitted(true)}
+                >
+                  Notify me →
+                </button>
+              </div>
+            )}
+
+            <button className="subscribe-gate-back" onClick={() => setShowSubscribeGate(false)}>
+              ← Back to scorecard
+            </button>
+          </div>
         )}
 
       </div>
