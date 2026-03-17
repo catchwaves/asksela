@@ -68,11 +68,13 @@ const styles = `
   .landing-footer-text { font-size: 12px; color: rgba(245,230,200,0.2); letter-spacing: 0.05em; }
 
   /* RESPONSIVE */
+  .landing-category { font-size: 10px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(212,165,90,0.5); margin-bottom: 10px; display: block; }
+
   @media (max-width: 768px) {
     .landing-nav { padding: 16px 24px; }
-    .landing-hero { flex-direction: column-reverse; padding: 24px 24px 0; gap: 0; }
+    .landing-hero { flex-direction: column; padding: 24px 24px 0; gap: 0; }
     .landing-hero-left { max-width: 100%; }
-    .landing-sela { width: 220px; margin: 0 auto; }
+    .landing-sela { width: 180px; margin: 0 auto; }
     .landing-features { flex-direction: column; padding: 16px 24px 40px; }
     .landing-adv-row { flex-wrap: wrap; }
     .landing-adv { min-width: calc(50% - 5px); }
@@ -129,6 +131,7 @@ export default function Landing() {
       {/* Hero */}
       <div className="landing-hero">
         <div className="landing-hero-left">
+          <span className="landing-category">AI business advisor</span>
           <div className="landing-eyebrow">Your idea. Her verdict.</div>
           <h1 className="landing-headline">
             She already knows<br /><em>what you don't.</em>
