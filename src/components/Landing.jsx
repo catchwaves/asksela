@@ -1,397 +1,273 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,300;1,500&family=DM+Sans:wght@300;400;500&display=swap');
+
+  .landing-wrap { background: #1C0F2E; font-family: 'DM Sans', sans-serif; min-height: 100vh; position: relative; overflow-x: hidden; }
+
+  /* STARS */
+  .landing-stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
   /* NAV */
-  .nav {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 20px 48px;
-    background: rgba(247,242,234,0.92);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.3s;
-  }
-  .nav.scrolled { border-bottom-color: var(--border); }
-  .nav-logo { display: flex; align-items: baseline; gap: 4px; text-decoration: none; cursor: pointer; }
-  .nav-logo-ask { font-family: var(--font-body); font-size: 11px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
-  .nav-logo-sela { font-family: var(--font-display); font-size: 26px; font-weight: 500; font-style: italic; color: var(--ink); line-height: 1; }
-  .nav-links { display: flex; align-items: center; gap: 36px; list-style: none; }
-  .nav-links a { font-size: 13px; font-weight: 400; letter-spacing: 0.04em; color: var(--ink-soft); text-decoration: none; transition: color 0.2s; }
-  .nav-links a:hover { color: var(--clay); }
-  .nav-cta { background: var(--ink) !important; color: var(--paper) !important; padding: 10px 22px; border-radius: 2px; font-size: 12px !important; font-weight: 500 !important; letter-spacing: 0.08em; text-transform: uppercase; transition: background 0.2s !important; cursor: pointer; border: none; }
-  .nav-cta:hover { background: var(--clay) !important; }
+  .landing-nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 48px; border-bottom: 1px solid rgba(212,165,90,0.15); position: relative; z-index: 10; }
+  .landing-logo { display: flex; align-items: baseline; gap: 4px; cursor: pointer; text-decoration: none; }
+  .landing-logo-ask { font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(212,165,90,0.6); }
+  .landing-logo-sela { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-style: italic; color: #F5E6C8; line-height: 1; }
+  .landing-nav-btn { background: none; border: 1px solid rgba(212,165,90,0.4); color: #D4A55A; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; padding: 9px 20px; cursor: pointer; border-radius: 2px; transition: all 0.2s; }
+  .landing-nav-btn:hover { background: rgba(212,165,90,0.08); border-color: #D4A55A; }
 
   /* HERO */
-  .hero { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; padding-top: 80px; }
-  .hero-left { display: flex; flex-direction: column; justify-content: center; padding: 80px 64px 80px 80px; }
-  .hero-eyebrow { font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--clay); margin-bottom: 28px; opacity: 0; animation: fadeUp 0.7s ease 0.1s forwards; }
-  .hero-headline { font-family: var(--font-display); font-size: clamp(52px,6vw,80px); font-weight: 300; line-height: 1.05; letter-spacing: -0.01em; color: var(--ink); margin-bottom: 32px; opacity: 0; animation: fadeUp 0.8s ease 0.2s forwards; }
-  .hero-headline em { font-style: italic; color: var(--clay); }
-  .hero-sub { font-size: 16px; font-weight: 300; line-height: 1.75; color: var(--ink-soft); max-width: 420px; margin-bottom: 48px; opacity: 0; animation: fadeUp 0.8s ease 0.35s forwards; }
-  .hero-actions { display: flex; align-items: center; gap: 24px; opacity: 0; animation: fadeUp 0.8s ease 0.5s forwards; }
-  .btn-primary { display: inline-flex; align-items: center; gap: 10px; background: var(--ink); color: var(--paper); text-decoration: none; padding: 16px 32px; font-size: 13px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 2px; transition: background 0.2s, transform 0.2s; border: none; cursor: pointer; font-family: var(--font-body); }
-  .btn-primary:hover { background: var(--clay); transform: translateY(-1px); }
-  .btn-arrow { transition: transform 0.2s; display: inline-block; }
-  .btn-primary:hover .btn-arrow { transform: translateX(4px); }
-  .btn-link { font-size: 13px; font-weight: 400; color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--border); padding-bottom: 2px; transition: color 0.2s, border-color 0.2s; background: none; cursor: pointer; font-family: var(--font-body); }
-  .btn-link:hover { color: var(--ink); border-color: var(--ink); }
+  .landing-hero { display: flex; align-items: center; justify-content: space-between; max-width: 1100px; margin: 0 auto; padding: 40px 48px 20px; position: relative; z-index: 10; gap: 24px; }
+  .landing-hero-left { flex: 1; max-width: 500px; }
+  .landing-eyebrow { font-size: 11px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: #D4A55A; margin-bottom: 20px; }
+  .landing-headline { font-family: 'Cormorant Garamond', serif; font-size: clamp(38px, 4.5vw, 60px); font-weight: 300; line-height: 1.1; color: #F5E6C8; margin-bottom: 6px; }
+  .landing-headline em { font-style: italic; color: #D4A55A; }
+  .landing-headline-2 { font-family: 'Cormorant Garamond', serif; font-size: clamp(28px, 3.2vw, 46px); font-weight: 300; font-style: italic; color: rgba(245,230,200,0.3); margin-bottom: 28px; line-height: 1.2; }
+  .landing-sub { font-size: 15px; font-weight: 300; color: rgba(245,230,200,0.55); line-height: 1.85; margin-bottom: 36px; max-width: 420px; }
+  .landing-cta-primary { background: #D4A55A; color: #1C0F2E; border: none; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; padding: 16px 40px; cursor: pointer; border-radius: 2px; display: inline-block; margin-bottom: 14px; transition: all 0.2s; }
+  .landing-cta-primary:hover { background: #E8C07A; transform: translateY(-1px); }
+  .landing-cta-hint { font-size: 12px; color: rgba(245,230,200,0.28); letter-spacing: 0.04em; display: block; }
 
-  /* HERO RIGHT CARD */
-  .hero-right { display: flex; align-items: center; justify-content: center; padding: 80px 80px 80px 40px; opacity: 0; animation: fadeIn 1s ease 0.6s forwards; }
-  .hero-card { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 36px; width: 100%; max-width: 380px; box-shadow: 0 8px 40px rgba(26,22,18,0.08), 0 2px 8px rgba(26,22,18,0.04); position: relative; }
-  .hero-card::before { content: 'Idea Assessment'; font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 20px; }
-  .card-title { font-family: var(--font-display); font-size: 20px; font-weight: 500; color: var(--ink); margin-bottom: 6px; }
-  .card-category { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
-  .score-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-  .score-label { font-size: 12px; color: var(--ink-soft); width: 130px; flex-shrink: 0; }
-  .score-bar-wrap { flex: 1; height: 4px; background: var(--paper-deep); border-radius: 2px; overflow: hidden; }
-  .score-bar { height: 100%; border-radius: 2px; }
-  .score-num { font-size: 12px; font-weight: 500; color: var(--ink); width: 28px; text-align: right; }
-  .card-verdict { margin-top: 24px; padding: 16px; background: var(--paper); border-radius: 2px; border-left: 3px solid var(--sage); }
-  .card-verdict-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--sage); margin-bottom: 6px; }
-  .card-verdict-text { font-family: var(--font-display); font-size: 16px; font-style: italic; color: var(--ink-soft); line-height: 1.5; }
-  .hero-note { position: absolute; bottom: -20px; right: -24px; background: var(--paper-deep); border: 1px solid var(--border); border-radius: 2px; padding: 14px 18px; font-size: 12px; color: var(--ink-soft); width: 200px; box-shadow: 0 4px 16px rgba(26,22,18,0.08); }
-  .hero-note strong { display: block; font-family: var(--font-display); font-size: 16px; font-weight: 500; color: var(--clay); margin-bottom: 4px; }
+  /* SELA CHARACTER */
+  .landing-sela { flex-shrink: 0; width: 320px; }
+  @keyframes sela-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+  @keyframes sela-blink { 0%,90%,100%{transform:scaleY(1)} 94%{transform:scaleY(0.05)} }
+  @keyframes sela-sparkle { 0%,100%{opacity:0} 50%{opacity:1} }
+  .sela-float { animation: sela-float 5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .sela-blink-l { animation: sela-blink 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .sela-blink-r { animation: sela-blink 4s ease-in-out infinite 0.1s; transform-box: fill-box; transform-origin: center; }
+  .sela-sp1 { animation: sela-sparkle 2.2s ease-in-out infinite; }
+  .sela-sp2 { animation: sela-sparkle 2.2s ease-in-out infinite 0.7s; }
+  .sela-sp3 { animation: sela-sparkle 2.2s ease-in-out infinite 1.4s; }
 
-  /* TRUTH BAR */
-  .truth-bar { background: var(--ink); color: var(--paper); padding: 28px 80px; display: flex; align-items: center; justify-content: space-between; gap: 40px; }
-  .truth-stat { text-align: center; flex: 1; }
-  .truth-stat-num { font-family: var(--font-display); font-size: 48px; font-weight: 300; color: var(--clay); line-height: 1; display: block; }
-  .truth-stat-label { font-size: 12px; font-weight: 300; color: rgba(247,242,234,0.6); margin-top: 8px; letter-spacing: 0.05em; }
-  .truth-divider { width: 1px; height: 60px; background: rgba(247,242,234,0.15); }
+  /* FEATURES */
+  .landing-features { display: flex; gap: 12px; max-width: 1100px; margin: 0 auto; padding: 20px 48px 48px; position: relative; z-index: 10; }
+  .landing-feat { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(212,165,90,0.15); border-radius: 4px; padding: 24px 20px; transition: border-color 0.2s; }
+  .landing-feat:hover { border-color: rgba(212,165,90,0.35); }
+  .landing-feat-num { font-family: 'Cormorant Garamond', serif; font-size: 13px; color: rgba(212,165,90,0.5); margin-bottom: 10px; letter-spacing: 0.1em; font-style: italic; }
+  .landing-feat-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; color: #F5E6C8; margin-bottom: 8px; font-weight: 500; }
+  .landing-feat-text { font-size: 13px; font-weight: 300; color: rgba(245,230,200,0.45); line-height: 1.75; }
 
-  /* SECTIONS */
-  .section { padding: 100px 80px; }
-  .section-label { font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--clay); margin-bottom: 16px; }
-  .section-heading { font-family: var(--font-display); font-size: clamp(36px,4vw,52px); font-weight: 300; line-height: 1.15; color: var(--ink); margin-bottom: 20px; }
-  .section-heading em { font-style: italic; color: var(--clay); }
-  .section-sub { font-size: 15px; font-weight: 300; line-height: 1.75; color: var(--ink-soft); max-width: 560px; margin-bottom: 64px; }
-  .section-divider { display: flex; align-items: center; gap: 24px; padding: 0 80px; margin: 24px 0; }
-  .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-  .section-divider span { font-family: var(--font-display); font-size: 15px; font-style: italic; color: var(--muted); white-space: nowrap; }
-
-  /* STEPS */
-  .steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
-  .step { background: var(--paper); padding: 40px 36px; transition: background 0.2s; }
-  .step:hover { background: white; }
-  .step-num { font-family: var(--font-display); font-size: 48px; font-weight: 300; color: var(--border); line-height: 1; display: block; margin-bottom: 20px; }
-  .step-title { font-family: var(--font-display); font-size: 22px; font-weight: 500; color: var(--ink); margin-bottom: 12px; }
-  .step-text { font-size: 14px; font-weight: 300; line-height: 1.7; color: var(--ink-soft); }
-  .step-tag { display: inline-block; margin-top: 16px; font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); padding: 4px 10px; border-radius: 2px; }
-
-  /* HONEST SECTION */
-  .honest-section { background: var(--ink); padding: 100px 80px; color: var(--paper); }
-  .honest-section .section-label { color: var(--clay); }
-  .honest-section .section-heading { color: var(--paper); }
-  .honest-section .section-sub { color: rgba(247,242,234,0.65); }
-  .honest-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
-  .honest-card { background: rgba(255,255,255,0.04); padding: 40px; border: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; }
-  .honest-card:hover { background: rgba(255,255,255,0.07); }
-  .honest-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; font-size: 16px; }
-  .honest-icon.go { background: rgba(92,122,98,0.3); color: var(--sage-light); }
-  .honest-icon.caution { background: rgba(200,132,90,0.25); color: var(--clay-light); }
-  .honest-icon.pause { background: rgba(247,242,234,0.1); color: rgba(247,242,234,0.5); }
-  .honest-icon.stop { background: rgba(180,80,70,0.25); color: #D4796E; }
-  .honest-card-title { font-family: var(--font-display); font-size: 22px; font-weight: 500; color: var(--paper); margin-bottom: 12px; }
-  .honest-card-text { font-size: 14px; font-weight: 300; line-height: 1.75; color: rgba(247,242,234,0.6); }
-  .honest-card-quote { margin-top: 20px; padding: 16px; background: rgba(255,255,255,0.06); border-left: 2px solid var(--clay); font-family: var(--font-display); font-size: 17px; font-style: italic; color: rgba(247,242,234,0.8); line-height: 1.5; }
+  /* DIVIDER */
+  .landing-divider { width: 60px; height: 1px; background: rgba(212,165,90,0.25); margin: 0 auto 40px; }
 
   /* ADVISORS */
-  .advisors-section { padding: 100px 80px; background: var(--paper-deep); }
-  .advisors-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 16px; margin-top: 48px; }
-  .advisor-card { background: var(--paper); border: 1px solid var(--border); border-radius: 4px; padding: 28px 24px; text-align: center; transition: transform 0.2s, box-shadow 0.2s; }
-  .advisor-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(26,22,18,0.08); }
-  .advisor-initial { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 24px; font-weight: 400; color: var(--paper); margin: 0 auto 16px; }
-  .advisor-name { font-family: var(--font-display); font-size: 20px; font-weight: 500; color: var(--ink); margin-bottom: 4px; }
-  .advisor-role { font-size: 11px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
-  .advisor-desc { font-size: 13px; font-weight: 300; line-height: 1.6; color: var(--ink-soft); }
-
-  /* PULL QUOTE */
-  .pull-quote-section { padding: 80px; display: flex; align-items: center; gap: 80px; }
-  .pull-quote-line { width: 3px; background: var(--clay); height: 140px; flex-shrink: 0; }
-  .pull-quote-text { font-family: var(--font-display); font-size: clamp(28px,3.5vw,44px); font-weight: 300; line-height: 1.3; color: var(--ink); font-style: italic; }
-  .pull-quote-text strong { font-style: normal; font-weight: 500; color: var(--clay); }
-
-  /* CTA SECTION */
-  .cta-section { background: var(--paper-deep); border-top: 1px solid var(--border); padding: 100px 80px; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
-  .cta-heading { font-family: var(--font-display); font-size: clamp(40px,4.5vw,60px); font-weight: 300; line-height: 1.1; color: var(--ink); margin-bottom: 24px; }
-  .cta-heading em { font-style: italic; color: var(--clay); }
-  .cta-text { font-size: 15px; font-weight: 300; line-height: 1.75; color: var(--ink-soft); margin-bottom: 40px; }
-  .cta-right { padding-left: 40px; border-left: 1px solid var(--border); }
-  .free-tag { display: inline-block; background: var(--sage); color: var(--paper); font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; padding: 6px 14px; border-radius: 2px; margin-bottom: 24px; }
-  .free-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
-  .free-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; font-weight: 300; color: var(--ink-soft); line-height: 1.5; }
-  .free-list li::before { content: '→'; color: var(--clay); flex-shrink: 0; margin-top: 1px; }
+  .landing-advisors { max-width: 1100px; margin: 0 auto; padding: 0 48px 80px; position: relative; z-index: 10; }
+  .landing-advisors-label { font-size: 10px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(212,165,90,0.4); text-align: center; margin-bottom: 20px; }
+  .landing-adv-row { display: flex; gap: 10px; }
+  .landing-adv { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(212,165,90,0.12); border-radius: 4px; padding: 20px 12px; text-align: center; transition: border-color 0.2s; }
+  .landing-adv:hover { border-color: rgba(212,165,90,0.3); }
+  .landing-adv-glyph { font-size: 22px; color: #D4A55A; margin-bottom: 8px; line-height: 1; }
+  .landing-adv-name { font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 500; color: #F5E6C8; margin-bottom: 2px; }
+  .landing-adv-role { font-size: 11px; color: rgba(245,230,200,0.35); margin-bottom: 10px; }
+  .landing-adv-badge { display: inline-block; font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(212,165,90,0.55); border: 1px solid rgba(212,165,90,0.2); padding: 3px 8px; border-radius: 2px; }
 
   /* FOOTER */
-  footer { background: var(--ink); color: rgba(247,242,234,0.5); padding: 48px 80px; display: flex; align-items: center; justify-content: space-between; }
-  .footer-logo { display: flex; align-items: baseline; gap: 4px; }
-  .footer-logo-ask { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(247,242,234,0.35); }
-  .footer-logo-sela { font-family: var(--font-display); font-size: 22px; font-weight: 400; font-style: italic; color: rgba(247,242,234,0.7); }
-  .footer-tagline { font-family: var(--font-display); font-size: 16px; font-style: italic; color: rgba(247,242,234,0.4); }
-  .footer-links { display: flex; gap: 28px; list-style: none; }
-  .footer-links a { font-size: 12px; color: rgba(247,242,234,0.4); text-decoration: none; transition: color 0.2s; }
-  .footer-links a:hover { color: var(--clay); }
+  .landing-footer { border-top: 1px solid rgba(212,165,90,0.1); padding: 24px 48px; text-align: center; position: relative; z-index: 10; }
+  .landing-footer-text { font-size: 12px; color: rgba(245,230,200,0.2); letter-spacing: 0.05em; }
 
-  /* REVEAL */
-  .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
-  .reveal.visible { opacity: 1; transform: translateY(0); }
-
-  @media (max-width: 900px) {
-    .nav { padding: 16px 24px; }
-    .nav-links { display: none; }
-    .hero { grid-template-columns: 1fr; }
-    .hero-right { display: none; }
-    .hero-left { padding: 60px 24px; }
-    .section { padding: 64px 24px; }
-    .truth-bar { padding: 40px 24px; flex-wrap: wrap; gap: 24px; }
-    .truth-divider { display: none; }
-    .steps { grid-template-columns: 1fr; }
-    .honest-section { padding: 64px 24px; }
-    .honest-grid { grid-template-columns: 1fr; }
-    .advisors-section { padding: 64px 24px; }
-    .advisors-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-    .pull-quote-section { padding: 64px 24px; gap: 28px; }
-    .cta-section { grid-template-columns: 1fr; padding: 64px 24px; gap: 48px; }
-    .cta-right { padding-left: 0; border-left: none; border-top: 1px solid var(--border); padding-top: 40px; }
-    footer { padding: 40px 24px; flex-direction: column; gap: 20px; text-align: center; }
-    .section-divider { padding: 0 24px; }
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .landing-nav { padding: 16px 24px; }
+    .landing-hero { flex-direction: column-reverse; padding: 24px 24px 0; gap: 0; }
+    .landing-hero-left { max-width: 100%; }
+    .landing-sela { width: 220px; margin: 0 auto; }
+    .landing-features { flex-direction: column; padding: 16px 24px 40px; }
+    .landing-adv-row { flex-wrap: wrap; }
+    .landing-adv { min-width: calc(50% - 5px); }
+    .landing-advisors { padding: 0 24px 60px; }
+    .landing-footer { padding: 20px 24px; }
   }
 `
 
 export default function Landing() {
-  const navRef = useRef(null)
   const navigate = useNavigate()
 
   useEffect(() => {
-    const styleEl = document.createElement('style')
-    styleEl.textContent = styles
-    document.head.appendChild(styleEl)
-    return () => document.head.removeChild(styleEl)
+    const el = document.createElement('style')
+    el.textContent = styles
+    document.head.appendChild(el)
+    return () => document.head.removeChild(el)
   }, [])
-
-  useEffect(() => {
-    const nav = navRef.current
-    const onScroll = () => nav?.classList.toggle('scrolled', window.scrollY > 20)
-    window.addEventListener('scroll', onScroll)
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  useEffect(() => {
-    const reveals = document.querySelectorAll('.reveal')
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          setTimeout(() => entry.target.classList.add('visible'), 80)
-          observer.unobserve(entry.target)
-        }
-      })
-    }, { threshold: 0.1 })
-    reveals.forEach(el => observer.observe(el))
-    return () => observer.disconnect()
-  }, [])
-
-  const goAssess = () => navigate('/assess')
 
   return (
-    <>
-      {/* NAV */}
-      <nav ref={navRef} className="nav">
-        <div className="nav-logo" onClick={() => navigate('/')}>
-          <span className="nav-logo-ask">Ask</span>
-          <span className="nav-logo-sela">Sela</span>
+    <div className="landing-wrap">
+
+      {/* Stars background */}
+      <svg className="landing-stars" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice">
+        <circle cx="80"   cy="60"  r="1"   fill="#D4A55A" opacity="0.5"/>
+        <circle cx="280"  cy="35"  r="1.5" fill="#F5E6C8" opacity="0.35"/>
+        <circle cx="520"  cy="80"  r="1"   fill="#D4A55A" opacity="0.45"/>
+        <circle cx="780"  cy="45"  r="1"   fill="#F5E6C8" opacity="0.5"/>
+        <circle cx="1020" cy="70"  r="1.5" fill="#D4A55A" opacity="0.3"/>
+        <circle cx="150"  cy="160" r="1"   fill="#F5E6C8" opacity="0.4"/>
+        <circle cx="420"  cy="140" r="1.5" fill="#D4A55A" opacity="0.4"/>
+        <circle cx="660"  cy="120" r="1"   fill="#F5E6C8" opacity="0.3"/>
+        <circle cx="900"  cy="130" r="1"   fill="#D4A55A" opacity="0.5"/>
+        <circle cx="1100" cy="180" r="1"   fill="#F5E6C8" opacity="0.35"/>
+        <circle cx="60"   cy="300" r="1"   fill="#D4A55A" opacity="0.3"/>
+        <circle cx="1150" cy="320" r="1.5" fill="#F5E6C8" opacity="0.4"/>
+        <circle cx="350"  cy="500" r="1"   fill="#D4A55A" opacity="0.25"/>
+        <circle cx="750"  cy="460" r="1"   fill="#F5E6C8" opacity="0.2"/>
+        <circle cx="950"  cy="480" r="1"   fill="#F5E6C8" opacity="0.3"/>
+        <circle cx="200"  cy="600" r="1"   fill="#D4A55A" opacity="0.2"/>
+        <circle cx="1050" cy="580" r="1"   fill="#F5E6C8" opacity="0.25"/>
+      </svg>
+
+      {/* Nav */}
+      <nav className="landing-nav">
+        <div className="landing-logo" onClick={() => navigate('/')}>
+          <span className="landing-logo-ask">Ask </span>
+          <span className="landing-logo-sela">Sela</span>
         </div>
-        <ul className="nav-links">
-          <li><a href="#how-it-works">How it works</a></li>
-          <li><a href="#advisors">The board</a></li>
-          <li><button className="nav-cta" onClick={goAssess}>Try free</button></li>
-        </ul>
+        <button className="landing-nav-btn" onClick={() => navigate('/assess')}>
+          Begin your reading →
+        </button>
       </nav>
 
-      {/* HERO */}
-      <section className="hero">
-        <div className="hero-left">
-          <p className="hero-eyebrow">Honest advice before you commit</p>
-          <h1 className="hero-headline">
-            Make the right decision.<br />
-            Not just the one <em>you want.</em>
+      {/* Hero */}
+      <div className="landing-hero">
+        <div className="landing-hero-left">
+          <div className="landing-eyebrow">Your idea. Her verdict.</div>
+          <h1 className="landing-headline">
+            She already knows<br /><em>what you don't.</em>
           </h1>
-          <p className="hero-sub">
-            Sela is an AI advisor built for founders at the idea stage. She scores your idea honestly, stress-tests the finances, and tells you what five experienced advisors would actually say — before you spend a dollar.
+          <div className="landing-headline-2">Will it work?</div>
+          <p className="landing-sub">
+            Sela is an AI advisor trained to get your idea right — before you spend a dollar on it. Playful about the process. Ruthless about the truth.
           </p>
-          <div className="hero-actions">
-            <button className="btn-primary" onClick={goAssess}>
-              Assess my idea <span className="btn-arrow">→</span>
-            </button>
-            <a href="#how-it-works" className="btn-link">See how it works</a>
-          </div>
-        </div>
-        <div className="hero-right">
-          <div className="hero-card">
-            <div className="card-title">Premium Group Fitness Studio</div>
-            <div className="card-category">Health &amp; Wellness · Santa Barbara, CA</div>
-            {[
-              { label: 'Market opportunity', val: 78, color: 'var(--sage)' },
-              { label: 'Competitive edge',   val: 72, color: 'var(--sage)' },
-              { label: 'Capital requirements',val: 55, color: 'var(--clay)' },
-              { label: 'Founder-market fit', val: 85, color: 'var(--sage)' },
-              { label: 'Time to revenue',    val: 60, color: 'var(--clay-light)' },
-            ].map(s => (
-              <div className="score-row" key={s.label}>
-                <span className="score-label">{s.label}</span>
-                <div className="score-bar-wrap">
-                  <div className="score-bar" style={{ width: `${s.val}%`, background: s.color }} />
-                </div>
-                <span className="score-num">{(s.val/10).toFixed(1)}</span>
-              </div>
-            ))}
-            <div className="card-verdict">
-              <div className="card-verdict-label">Sela's read</div>
-              <div className="card-verdict-text">"The positioning is real. The capital requirement is your biggest risk — not the idea itself."</div>
-            </div>
-            <div className="hero-note">
-              <strong>67 / 72</strong>
-              Overall viability score — proceed with eyes open.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* TRUTH BAR */}
-      <div className="truth-bar">
-        {[
-          { num: '90%',  label: 'of new businesses fail within 10 years' },
-          { num: '$30K', label: 'average amount spent before validating an idea' },
-          { num: '6 min',label: 'to get Sela\'s honest assessment' },
-          { num: 'Free', label: 'no credit card, no commitment' },
-        ].map((s, i) => (
-          <>
-            <div className="truth-stat" key={s.num}>
-              <span className="truth-stat-num">{s.num}</span>
-              <div className="truth-stat-label">{s.label}</div>
-            </div>
-            {i < 3 && <div className="truth-divider" key={`d${i}`} />}
-          </>
-        ))}
-      </div>
-
-      {/* HOW IT WORKS */}
-      <section className="section" id="how-it-works">
-        <p className="section-label reveal">How it works</p>
-        <h2 className="section-heading reveal">Six steps.<br />One honest answer.</h2>
-        <p className="section-sub reveal">Sela doesn't tell you what you want to hear. She tells you what five experienced advisors would actually say — with the receipts to back it up.</p>
-        <div className="steps reveal">
-          {[
-            { n:'01', title:'Describe your idea',         text:'Plain language. No pitch deck required. Tell Sela what you\'re building, who it\'s for, and why you\'re the one to do it.', tag:'2 minutes' },
-            { n:'02', title:'Receive your scorecard',     text:'Eight dimensions. Honest scores. Your strongest point and your biggest risk — named plainly, not softened.', tag:'AI-scored' },
-            { n:'03', title:'Financial reality check',    text:'Year 1 and Year 3 projections. Break-even month. Startup capital needed. The financial truth most advisors won\'t say out loud.', tag:'4 questions' },
-            { n:'04', title:'The advisory board weighs in',text:'Five distinct advisors. Five perspectives. Financial, operational, brand, devil\'s advocate, founder\'s coach.', tag:'5 advisors' },
-            { n:'05', title:'Founder fit assessment',     text:'Are you the right person for this idea right now? Sela maps your strengths, your gaps, and what kind of help you\'ll actually need.', tag:'Honest scoring' },
-            { n:'06', title:'Your verdict',               text:'Go. Adjust. Or Pause. A clear verdict with reasoning, the top three obstacles ahead, and numbered next steps.', tag:'Clear decision' },
-          ].map(s => (
-            <div className="step" key={s.n}>
-              <span className="step-num">{s.n}</span>
-              <div className="step-title">{s.title}</div>
-              <p className="step-text">{s.text}</p>
-              <span className="step-tag">{s.tag}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <div className="section-divider reveal"><span>What Sela says when she means it</span></div>
-
-      {/* HONEST SECTION */}
-      <section className="honest-section">
-        <p className="section-label reveal">Honest by design</p>
-        <h2 className="section-heading reveal">She says what most people won't.</h2>
-        <p className="section-sub reveal">Sela's value is equal whether she greenlights your idea or saves you from it. The goal is the right decision — not the positive one.</p>
-        <div className="honest-grid reveal">
-          {[
-            { cls:'go',      icon:'✓', title:'When the answer is Go',              text:'Sela tells you why, names your strongest advantages, and maps what you\'ll need to execute well. No empty cheerleading. Just confidence that\'s earned.', quote:'"Your positioning is differentiated and your founder-market fit is strong. The market is real. Your biggest risk isn\'t the idea — it\'s pace."' },
-            { cls:'caution', icon:'!', title:'When you need to adjust',             text:'Sela names what\'s strong enough to build on and what needs to change before you commit real money. Specific. Actionable. No vague "validate it first."', quote:'"The concept is viable. The revenue model needs work before launch — here\'s what to change and why it matters."' },
-            { cls:'pause',   icon:'◷', title:'When you need more information',      text:'Sometimes the answer isn\'t no — it\'s "not yet, and here\'s what you need to find out." Sela tells you exactly what would change the verdict.', quote:'"Too many unknowns to assess confidently. Answer these three questions first — then come back."' },
-            { cls:'stop',    icon:'✕', title:'When the answer is no',              text:'Rare, but real. If the fundamentals don\'t hold, Sela says so — with the reasoning. Saving you from a bad idea is as valuable as backing a good one.', quote:'"The unit economics don\'t work at any reasonable scale. This isn\'t a timing issue — it\'s structural."' },
-          ].map(c => (
-            <div className="honest-card" key={c.cls}>
-              <div className={`honest-icon ${c.cls}`}>{c.icon}</div>
-              <div className="honest-card-title">{c.title}</div>
-              <p className="honest-card-text">{c.text}</p>
-              <div className="honest-card-quote">{c.quote}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ADVISORS */}
-      <section className="advisors-section" id="advisors">
-        <p className="section-label reveal">The advisory board</p>
-        <h2 className="section-heading reveal">Five perspectives.<br />One honest picture.</h2>
-        <p className="section-sub reveal">Each advisor brings a different lens. Together they cover the angles most founders miss until it's too late.</p>
-        <div className="advisors-grid reveal">
-          {[
-            { initial:'M', name:'Maya',   role:'Financial Advisor', color:'var(--sage)',    desc:'Finds the number behind the number. Catches optimistic assumptions before they become expensive mistakes.' },
-            { initial:'R', name:'Rex',    role:'Operator',          color:'var(--clay)',    desc:'Has launched, scaled, and failed. Asks about the things that actually kill businesses — hiring, ops, supplier risk.' },
-            { initial:'S', name:'Stella', role:'Brand & Market',    color:'#9B7DB6',        desc:'Sees how the market sees you. Cuts through founder blind spots about positioning, messaging, and differentiation.' },
-            { initial:'D', name:'Dario',  role:"Devil's Advocate",  color:'#7A8FA6',        desc:"Argues the other side. Not to be negative — to find the assumptions you're not questioning." },
-            { initial:'J', name:'Jordan', role:"Founder's Coach",   color:'#A0845C',        desc:'Focused on you, not the idea. Are you the right person for this? What will it cost you personally?' },
-          ].map(a => (
-            <div className="advisor-card" key={a.name}>
-              <div className="advisor-initial" style={{ background: a.color }}>{a.initial}</div>
-              <div className="advisor-name">{a.name}</div>
-              <div className="advisor-role">{a.role}</div>
-              <p className="advisor-desc">{a.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* PULL QUOTE */}
-      <div className="pull-quote-section reveal">
-        <div className="pull-quote-line" />
-        <p className="pull-quote-text">
-          "Most advisors tell you what you want to hear. Most business tools validate your assumptions. Sela does <strong>neither</strong> — and that's the whole point."
-        </p>
-      </div>
-
-      {/* CTA */}
-      <section className="cta-section" id="start">
-        <div>
-          <h2 className="cta-heading reveal">Start with<br />your <em>real</em> idea.</h2>
-          <p className="cta-text reveal">Get Sela's honest assessment in minutes. No pitch deck. No consultant fees. No cheerleading.</p>
-          <button className="btn-primary reveal" onClick={goAssess} style={{ marginTop: 0 }}>
-            Assess my idea <span className="btn-arrow">→</span>
+          <button className="landing-cta-primary" onClick={() => navigate('/assess')}>
+            Ask Sela about your idea →
           </button>
+          <span className="landing-cta-hint">First reading is free. No credit card.</span>
         </div>
-        <div className="cta-right reveal">
-          <span className="free-tag">Free to start</span>
-          <ul className="free-list">
-            {[
-              'Full 6-step idea assessment — no limit',
-              '8-dimension viability scorecard',
-              'Year 1 & Year 3 financial projections',
-              'All five advisor perspectives',
-              'Founder fit analysis',
-              'Clear Go / Adjust / Pause verdict',
-            ].map(item => <li key={item}>{item}</li>)}
-          </ul>
-        </div>
-      </section>
 
-      {/* FOOTER */}
-      <footer>
-        <div className="footer-logo">
-          <span className="footer-logo-ask">Ask</span>
-          <span className="footer-logo-sela">Sela</span>
+        {/* Sela character */}
+        <div className="landing-sela">
+          <svg width="100%" viewBox="0 0 320 460">
+            <g className="sela-float">
+              {/* Robe */}
+              <path d="M100 300 Q80 320 75 380 Q80 420 160 425 Q240 420 245 380 Q240 320 220 300 Q200 290 160 288 Q120 290 100 300Z" fill="#C4622D" stroke="#1A0A30" strokeWidth="3" strokeLinejoin="round"/>
+              <path d="M140 310 Q135 360 138 420" fill="none" stroke="#A04820" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M180 310 Q185 360 182 420" fill="none" stroke="#A04820" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M135 300 Q160 308 185 300" fill="none" stroke="#1A0A30" strokeWidth="2.5" strokeLinecap="round"/>
+              {/* Sleeves */}
+              <path d="M100 300 Q60 310 45 350 Q50 370 70 360 Q90 330 110 320Z" fill="#C4622D" stroke="#1A0A30" strokeWidth="3" strokeLinejoin="round"/>
+              <path d="M220 300 Q260 310 275 350 Q270 370 250 360 Q230 330 210 320Z" fill="#C4622D" stroke="#1A0A30" strokeWidth="3" strokeLinejoin="round"/>
+              {/* Sleeve dots */}
+              <circle cx="72"  cy="338" r="4" fill="#D4A55A" stroke="#1A0A30" strokeWidth="1.5"/>
+              <circle cx="84"  cy="326" r="3" fill="#F5E6C8" stroke="#1A0A30" strokeWidth="1.5"/>
+              <circle cx="248" cy="338" r="4" fill="#D4A55A" stroke="#1A0A30" strokeWidth="1.5"/>
+              <circle cx="236" cy="326" r="3" fill="#F5E6C8" stroke="#1A0A30" strokeWidth="1.5"/>
+              {/* Peace sign */}
+              <circle cx="160" cy="358" r="20" fill="none" stroke="#D4A55A" strokeWidth="2.5"/>
+              <line x1="160" y1="338" x2="160" y2="378" stroke="#D4A55A" strokeWidth="2.5" strokeLinecap="round"/>
+              <line x1="160" y1="358" x2="146" y2="372" stroke="#D4A55A" strokeWidth="2.5" strokeLinecap="round"/>
+              <line x1="160" y1="358" x2="174" y2="372" stroke="#D4A55A" strokeWidth="2.5" strokeLinecap="round"/>
+              {/* Neck */}
+              <rect x="148" y="272" width="24" height="30" rx="12" fill="#E8C8A0" stroke="#1A0A30" strokeWidth="2.5"/>
+              {/* Head */}
+              <ellipse cx="160" cy="230" rx="58" ry="62" fill="#E8C8A0" stroke="#1A0A30" strokeWidth="3.5"/>
+              {/* Hair */}
+              <path d="M102 210 Q88 240 90 290 Q98 310 108 300 Q104 265 108 230Z" fill="#3D2010" stroke="#1A0A30" strokeWidth="3" strokeLinejoin="round"/>
+              <path d="M218 210 Q232 240 230 290 Q222 310 212 300 Q216 265 212 230Z" fill="#3D2010" stroke="#1A0A30" strokeWidth="3" strokeLinejoin="round"/>
+              <path d="M102 190 Q95 170 105 155 Q120 140 160 138 Q200 140 215 155 Q225 170 218 190" fill="#3D2010" stroke="#1A0A30" strokeWidth="3" strokeLinejoin="round"/>
+              <path d="M118 165 Q112 155 116 148" fill="none" stroke="#3D2010" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M202 165 Q208 155 204 148" fill="none" stroke="#3D2010" strokeWidth="2" strokeLinecap="round"/>
+              {/* Flower */}
+              <ellipse cx="108" cy="175" rx="5" ry="7" fill="#E87B5A" stroke="#1A0A30" strokeWidth="2"/>
+              <ellipse cx="118" cy="185" rx="7" ry="5" fill="#E87B5A" stroke="#1A0A30" strokeWidth="2"/>
+              <ellipse cx="108" cy="195" rx="5" ry="7" fill="#E87B5A" stroke="#1A0A30" strokeWidth="2"/>
+              <ellipse cx="98"  cy="185" rx="7" ry="5" fill="#E87B5A" stroke="#1A0A30" strokeWidth="2"/>
+              <circle cx="108" cy="185" r="5" fill="#FADA5E" stroke="#1A0A30" strokeWidth="1.5"/>
+              {/* Glasses */}
+              <circle cx="142" cy="230" r="18" fill="rgba(100,180,255,0.12)" stroke="#1A0A30" strokeWidth="2.5"/>
+              <circle cx="178" cy="230" r="18" fill="rgba(100,180,255,0.12)" stroke="#1A0A30" strokeWidth="2.5"/>
+              <path d="M160 228 L160 232" stroke="#1A0A30" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M124 228 Q118 224 112 228" fill="none" stroke="#1A0A30" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M196 228 Q202 224 208 228" fill="none" stroke="#1A0A30" strokeWidth="2" strokeLinecap="round"/>
+              {/* Eyes */}
+              <ellipse cx="142" cy="230" rx="10" ry="7" fill="#3D2010" className="sela-blink-l"/>
+              <circle  cx="146" cy="228" r="2.5"          fill="white"   className="sela-blink-l"/>
+              <ellipse cx="178" cy="230" rx="10" ry="7" fill="#3D2010" className="sela-blink-r"/>
+              <circle  cx="182" cy="228" r="2.5"          fill="white"   className="sela-blink-r"/>
+              {/* Eyebrows */}
+              <path d="M128 214 Q142 208 156 213" fill="none" stroke="#3D2010" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M164 213 Q178 208 192 214" fill="none" stroke="#3D2010" strokeWidth="2.5" strokeLinecap="round"/>
+              {/* Nose */}
+              <path d="M157 242 Q160 248 163 242" fill="none" stroke="#C8A080" strokeWidth="2" strokeLinecap="round"/>
+              {/* Smile */}
+              <path d="M145 258 Q160 268 175 258" fill="none" stroke="#1A0A30" strokeWidth="2.5" strokeLinecap="round"/>
+              {/* Blush */}
+              <ellipse cx="120" cy="248" rx="12" ry="7" fill="#E87B5A" opacity="0.3"/>
+              <ellipse cx="200" cy="248" rx="12" ry="7" fill="#E87B5A" opacity="0.3"/>
+              {/* Headband */}
+              <path d="M103 200 Q115 188 160 185 Q205 188 217 200" fill="none" stroke="#D4A55A" strokeWidth="5" strokeLinecap="round"/>
+              <circle cx="160" cy="184" r="6" fill="#D4A55A" stroke="#1A0A30" strokeWidth="2"/>
+              {/* Orb */}
+              <circle cx="160" cy="430" r="30" fill="#6B3FA0" stroke="#1A0A30" strokeWidth="3"/>
+              <circle cx="160" cy="430" r="30" fill="none" stroke="#D4A55A" strokeWidth="1.5" strokeDasharray="5 4"/>
+              <circle cx="150" cy="421" r="9"  fill="#9B6FD4" opacity="0.6"/>
+              <text x="160" y="436" textAnchor="middle" fontFamily="Georgia,serif" fontSize="18" fill="#F5E6C8">✦</text>
+            </g>
+            {/* Sparkles */}
+            <g className="sela-sp1"><text x="40"  y="140" fontSize="14" fill="#D4A55A" textAnchor="middle">✦</text></g>
+            <g className="sela-sp2"><text x="295" y="180" fontSize="11" fill="#E87B5A" textAnchor="middle">✦</text></g>
+            <g className="sela-sp3"><text x="310" y="100" fontSize="9"  fill="#F5E6C8" textAnchor="middle">✦</text></g>
+            <g className="sela-sp2"><text x="25"  y="280" fontSize="9"  fill="#D4A55A" textAnchor="middle">✦</text></g>
+            <g className="sela-sp1"><text x="300" y="360" fontSize="8"  fill="#E87B5A" textAnchor="middle">✦</text></g>
+          </svg>
         </div>
-        <div className="footer-tagline">Honest advice before you commit.</div>
-        <ul className="footer-links">
-          <li><a href="#">Privacy</a></li>
-          <li><a href="#">Terms</a></li>
-          <li><a href="#">Contact</a></li>
-        </ul>
+      </div>
+
+      {/* Feature cards */}
+      <div className="landing-features">
+        <div className="landing-feat">
+          <div className="landing-feat-num">I</div>
+          <div className="landing-feat-title">The Idea Reading</div>
+          <div className="landing-feat-text">8 dimensions scored. Market, timing, capital, fit. No filter, no flattery.</div>
+        </div>
+        <div className="landing-feat">
+          <div className="landing-feat-num">II</div>
+          <div className="landing-feat-title">The Council</div>
+          <div className="landing-feat-text">Five AI advisors — financial, operational, brand, skeptic, coach. Ask them anything.</div>
+        </div>
+        <div className="landing-feat">
+          <div className="landing-feat-num">III</div>
+          <div className="landing-feat-title">The Verdict</div>
+          <div className="landing-feat-text">Go. Adjust. Pause. The only three answers that matter — with exactly what to do next.</div>
+        </div>
+      </div>
+
+      <div className="landing-divider" />
+
+      {/* Advisors */}
+      <div className="landing-advisors">
+        <div className="landing-advisors-label">The Council — five AI advisors, each trained on a distinct perspective</div>
+        <div className="landing-adv-row">
+          {[
+            { glyph: '♄', name: 'Maya',   role: 'Financial',        badge: 'AI · Numbers'   },
+            { glyph: '♂', name: 'Rex',    role: 'Operations',       badge: 'AI · Execution' },
+            { glyph: '♀', name: 'Stella', role: 'Brand & Market',   badge: 'AI · Market'    },
+            { glyph: '☿', name: 'Dario',  role: "Devil's Advocate", badge: 'AI · Skeptic'   },
+            { glyph: '☽', name: 'Jordan', role: "Founder's Coach",  badge: 'AI · Coach'     },
+          ].map(a => (
+            <div className="landing-adv" key={a.name}>
+              <div className="landing-adv-glyph">{a.glyph}</div>
+              <div className="landing-adv-name">{a.name}</div>
+              <div className="landing-adv-role">{a.role}</div>
+              <div className="landing-adv-badge">{a.badge}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="landing-footer">
+        <span className="landing-footer-text">Ask Sela · Honest advice before you commit.</span>
       </footer>
-    </>
+
+    </div>
   )
 }
