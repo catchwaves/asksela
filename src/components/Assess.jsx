@@ -3,214 +3,243 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 const STEPS = ['Idea', 'Scorecard', 'Financials', 'Advisors', 'Founder Fit', 'Verdict']
+const STEP_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI']
 
 const styles = `
-  .assess-wrap { min-height: 100vh; background: var(--paper); padding-top: 0; }
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,300;1,500&family=DM+Sans:wght@300;400;500&display=swap');
 
-  /* ASSESS NAV */
-  .assess-nav { position: sticky; top: 0; z-index: 100; background: rgba(247,242,234,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 16px 48px; display: flex; align-items: center; justify-content: space-between; }
+  /* ── THEME TOKENS ── */
+  .assess-wrap {
+    --plum:       #1C0F2E;
+    --plum-mid:   #2A1545;
+    --plum-light: #3D2060;
+    --gold:       #D4A55A;
+    --gold-soft:  rgba(212,165,90,0.15);
+    --gold-border:rgba(212,165,90,0.2);
+    --cream:      #F5E6C8;
+    --cream-soft: rgba(245,230,200,0.55);
+    --cream-muted:rgba(245,230,200,0.3);
+    --terra:      #C4622D;
+    --sage-new:   #5C8A62;
+    --border-new: rgba(212,165,90,0.18);
+    --card-bg:    rgba(255,255,255,0.04);
+    min-height: 100vh;
+    background: var(--plum);
+    padding-top: 0;
+  }
+
+  /* ── NAV ── */
+  .assess-nav { position: sticky; top: 0; z-index: 100; background: rgba(28,15,46,0.96); backdrop-filter: blur(8px); border-bottom: 1px solid var(--gold-border); padding: 14px 48px; display: flex; align-items: center; justify-content: space-between; }
   .assess-logo { display: flex; align-items: baseline; gap: 4px; cursor: pointer; text-decoration: none; }
-  .assess-logo-ask { font-family: var(--font-body); font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
-  .assess-logo-sela { font-family: var(--font-display); font-size: 22px; font-weight: 500; font-style: italic; color: var(--ink); line-height: 1; }
+  .assess-logo-ask { font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(212,165,90,0.6); }
+  .assess-logo-sela { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 500; font-style: italic; color: var(--cream); line-height: 1; }
   .assess-steps { display: flex; align-items: center; gap: 0; }
-  .assess-step-item { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: 0.05em; padding: 0 16px; }
-  .assess-step-item.active { color: var(--ink); font-weight: 500; }
-  .assess-step-item.done { color: var(--sage); }
-  .assess-step-num { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; }
-  .assess-step-item.active .assess-step-num { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-  .assess-step-item.done .assess-step-num { background: var(--sage); border-color: var(--sage); color: var(--paper); }
-  .assess-step-sep { width: 20px; height: 1px; background: var(--border); flex-shrink: 0; }
+  .assess-step-item { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9px; font-weight: 400; color: rgba(212,165,90,0.35); letter-spacing: 0.08em; text-transform: uppercase; padding: 0 14px; }
+  .assess-step-item.active { color: var(--gold); }
+  .assess-step-item.done { color: rgba(212,165,90,0.6); }
+  .assess-step-num { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-style: italic; color: rgba(212,165,90,0.3); line-height: 1; margin-bottom: 1px; }
+  .assess-step-item.active .assess-step-num { color: var(--gold); }
+  .assess-step-item.done .assess-step-num { color: rgba(212,165,90,0.55); }
+  .assess-step-sep { width: 20px; height: 1px; background: var(--gold-border); flex-shrink: 0; }
 
-  /* CONTENT */
+  /* ── CONTENT ── */
   .assess-content { max-width: 760px; margin: 0 auto; padding: 60px 24px 120px; }
-  .assess-heading { font-family: var(--font-display); font-size: clamp(32px,4vw,48px); font-weight: 300; line-height: 1.15; color: var(--ink); margin-bottom: 12px; }
-  .assess-heading em { font-style: italic; color: var(--clay); }
-  .assess-sub { font-size: 15px; font-weight: 300; color: var(--ink-soft); margin-bottom: 40px; line-height: 1.7; }
+  .assess-heading { font-family: 'Cormorant Garamond', serif; font-size: clamp(32px,4vw,52px); font-weight: 300; line-height: 1.15; color: var(--cream); margin-bottom: 12px; }
+  .assess-heading em { font-style: italic; color: var(--gold); }
+  .assess-sub { font-size: 15px; font-weight: 300; color: var(--cream-soft); margin-bottom: 40px; line-height: 1.75; }
 
-  /* FORM ELEMENTS */
+  /* ── FORM ELEMENTS ── */
   .field { margin-bottom: 28px; }
-  .field label { display: block; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 10px; }
-  .field textarea, .field input { width: 100%; background: white; border: 1px solid var(--border); border-radius: 2px; padding: 16px; font-family: var(--font-body); font-size: 14px; font-weight: 300; color: var(--ink); line-height: 1.6; resize: vertical; outline: none; transition: border-color 0.2s; }
-  .field textarea:focus, .field input:focus { border-color: var(--clay); }
-  .field textarea::placeholder, .field input::placeholder { color: var(--muted); }
-  .field-hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
-
+  .field label { display: block; font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(212,165,90,0.6); margin-bottom: 10px; }
+  .field textarea, .field input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--gold-border); border-radius: 2px; padding: 16px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 300; color: var(--cream); line-height: 1.6; resize: vertical; outline: none; transition: border-color 0.2s; }
+  .field textarea:focus, .field input:focus { border-color: var(--gold); }
+  .field textarea::placeholder, .field input::placeholder { color: rgba(245,230,200,0.25); }
+  .field-hint { font-size: 12px; color: rgba(212,165,90,0.4); margin-top: 8px; }
   .fin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
 
-  /* BUTTONS */
+  /* ── BUTTONS ── */
   .assess-actions { display: flex; align-items: center; gap: 16px; margin-top: 40px; }
-  .btn-assess-primary { display: inline-flex; align-items: center; gap: 10px; background: var(--ink); color: var(--paper); border: none; padding: 16px 32px; font-family: var(--font-body); font-size: 13px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 2px; cursor: pointer; transition: background 0.2s, transform 0.2s; }
-  .btn-assess-primary:hover:not(:disabled) { background: var(--clay); transform: translateY(-1px); }
-  .btn-assess-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-assess-back { background: none; border: 1px solid var(--border); padding: 16px 24px; font-family: var(--font-body); font-size: 13px; color: var(--muted); border-radius: 2px; cursor: pointer; transition: all 0.2s; }
-  .btn-assess-back:hover { border-color: var(--ink); color: var(--ink); }
+  .btn-assess-primary { display: inline-flex; align-items: center; gap: 10px; background: var(--gold); color: var(--plum); border: none; padding: 16px 32px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 2px; cursor: pointer; transition: background 0.2s, transform 0.2s; }
+  .btn-assess-primary:hover:not(:disabled) { background: #E8C07A; transform: translateY(-1px); }
+  .btn-assess-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-assess-back { background: none; border: 1px solid var(--gold-border); padding: 16px 24px; font-family: 'DM Sans', sans-serif; font-size: 12px; color: rgba(212,165,90,0.6); border-radius: 2px; cursor: pointer; transition: all 0.2s; }
+  .btn-assess-back:hover { border-color: var(--gold); color: var(--gold); }
 
-  /* LOADING */
+  /* ── LOADING ── */
   .loading-wrap { text-align: center; padding: 80px 0; }
-  .spinner { width: 36px; height: 36px; border: 2px solid var(--border); border-top-color: var(--clay); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 24px; }
-  .loading-label { font-family: var(--font-display); font-size: 22px; font-style: italic; color: var(--ink-soft); margin-bottom: 8px; }
-  .loading-sub { font-size: 13px; color: var(--muted); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { width: 36px; height: 36px; border: 2px solid var(--gold-border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 24px; }
+  .loading-label { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-style: italic; color: var(--cream-soft); margin-bottom: 8px; }
+  .loading-sub { font-size: 13px; color: rgba(212,165,90,0.4); }
 
-  /* SCORECARD */
-  .scorecard-overall { background: var(--ink); color: var(--paper); border-radius: 4px; padding: 32px; margin-bottom: 32px; display: flex; align-items: center; gap: 40px; }
-  .overall-num { font-family: var(--font-display); font-size: 72px; font-weight: 300; color: var(--clay); line-height: 1; flex-shrink: 0; }
-  .overall-label { font-size: 11px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(247,242,234,0.5); margin-bottom: 10px; }
-  .overall-verdict { font-family: var(--font-display); font-size: 22px; font-style: italic; color: var(--paper); margin-bottom: 8px; line-height: 1.3; }
+  /* ── SCORECARD ── */
+  .scorecard-overall { background: var(--plum-mid); border: 1px solid var(--gold-border); border-radius: 4px; padding: 32px; margin-bottom: 32px; display: flex; align-items: center; gap: 40px; }
+  .overall-num { font-family: 'Cormorant Garamond', serif; font-size: 72px; font-weight: 300; color: var(--gold); line-height: 1; flex-shrink: 0; }
+  .overall-label { font-size: 11px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(212,165,90,0.4); margin-bottom: 10px; }
+  .overall-verdict { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-style: italic; color: var(--cream); margin-bottom: 8px; line-height: 1.3; }
   .score-dimension-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-  .score-dimension-label { font-size: 13px; color: var(--ink-soft); width: 180px; flex-shrink: 0; }
-  .score-dimension-bar-wrap { flex: 1; height: 6px; background: var(--paper-deep); border-radius: 3px; overflow: hidden; }
+  .score-dimension-label { font-size: 13px; color: var(--cream-soft); width: 180px; flex-shrink: 0; }
+  .score-dimension-bar-wrap { flex: 1; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
   .score-dimension-bar { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
-  .score-dimension-num { font-size: 13px; font-weight: 500; color: var(--ink); width: 32px; text-align: right; }
+  .score-dimension-num { font-size: 13px; font-weight: 500; color: var(--gold); width: 32px; text-align: right; }
   .scorecard-highlights { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
   .highlight-card { padding: 20px; border-radius: 2px; }
-  .highlight-card.strength { background: rgba(92,122,98,0.1); border-left: 3px solid var(--sage); }
-  .highlight-card.risk { background: rgba(200,132,90,0.1); border-left: 3px solid var(--clay); }
+  .highlight-card.strength { background: rgba(92,138,98,0.12); border-left: 3px solid var(--sage-new); }
+  .highlight-card.risk { background: rgba(196,98,45,0.12); border-left: 3px solid var(--terra); }
   .highlight-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 8px; }
-  .highlight-card.strength .highlight-label { color: var(--sage); }
-  .highlight-card.risk .highlight-label { color: var(--clay); }
-  .highlight-text { font-size: 14px; font-weight: 300; color: var(--ink-soft); line-height: 1.6; }
+  .highlight-card.strength .highlight-label { color: var(--sage-new); }
+  .highlight-card.risk .highlight-label { color: var(--terra); }
+  .highlight-text { font-size: 14px; font-weight: 300; color: var(--cream-soft); line-height: 1.6; }
 
-  /* FINANCIAL */
+  /* ── FINANCIAL ── */
   .fin-result-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; margin-bottom: 28px; }
-  .fin-card { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 24px; }
-  .fin-card-label { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-  .fin-card-value { font-family: var(--font-display); font-size: 32px; font-weight: 300; color: var(--ink); margin-bottom: 6px; }
-  .fin-card-note { font-size: 12px; color: var(--muted); }
-  .fin-truth { background: var(--ink); color: var(--paper); border-radius: 4px; padding: 28px; margin-top: 8px; }
-  .fin-truth-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--clay); margin-bottom: 12px; }
-  .fin-truth-text { font-family: var(--font-display); font-size: 20px; font-style: italic; line-height: 1.5; color: rgba(247,242,234,0.9); }
+  .fin-card { background: var(--card-bg); border: 1px solid var(--gold-border); border-radius: 4px; padding: 24px; }
+  .fin-card-label { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(212,165,90,0.45); margin-bottom: 8px; }
+  .fin-card-value { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 300; color: var(--cream); margin-bottom: 6px; }
+  .fin-card-note { font-size: 12px; color: rgba(212,165,90,0.4); }
+  .fin-truth { background: var(--plum-mid); border: 1px solid var(--gold-border); border-radius: 4px; padding: 28px; margin-top: 8px; }
+  .fin-truth-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; }
+  .fin-truth-text { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-style: italic; line-height: 1.55; color: rgba(245,230,200,0.9); }
 
-  /* ADVISORS */
-  .advisor-response-card { background: white; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 16px; overflow: hidden; }
+  /* ── ADVISORS ── */
+  .advisor-response-card { background: var(--card-bg); border: 1px solid var(--gold-border); border-radius: 4px; margin-bottom: 16px; overflow: hidden; }
   .advisor-response-header { display: flex; align-items: center; gap: 16px; padding: 20px 24px; cursor: pointer; transition: background 0.2s; }
-  .advisor-response-header:hover { background: var(--paper); }
-  .advisor-badge { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 20px; color: var(--paper); flex-shrink: 0; }
-  .advisor-response-name { font-family: var(--font-display); font-size: 18px; font-weight: 500; color: var(--ink); }
-  .advisor-response-role { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; }
-  .advisor-stance { margin-left: auto; font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; padding: 5px 12px; border-radius: 2px; flex-shrink: 0; }
-  .stance-support { background: rgba(92,122,98,0.12); color: var(--sage); }
-  .stance-caution { background: rgba(200,132,90,0.12); color: var(--clay); }
-  .stance-stop { background: rgba(180,80,70,0.12); color: #C4544A; }
-  .advisor-response-body { padding: 0 24px 24px; border-top: 1px solid var(--border); display: none; }
+  .advisor-response-header:hover { background: rgba(255,255,255,0.03); }
+  .advisor-badge { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 20px; color: var(--plum); flex-shrink: 0; }
+  .advisor-response-name { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 500; color: var(--cream); }
+  .advisor-response-role { font-size: 11px; color: rgba(212,165,90,0.45); letter-spacing: 0.08em; }
+  .advisor-stance { margin-left: auto; font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; padding: 5px 12px; border-radius: 2px; flex-shrink: 0; }
+  .stance-support { background: rgba(92,138,98,0.15); color: var(--sage-new); border: 1px solid rgba(92,138,98,0.25); }
+  .stance-caution { background: rgba(196,98,45,0.15); color: var(--terra); border: 1px solid rgba(196,98,45,0.25); }
+  .stance-stop { background: rgba(180,60,60,0.15); color: #E07070; border: 1px solid rgba(180,60,60,0.25); }
+  .advisor-response-body { padding: 0 24px 24px; border-top: 1px solid var(--gold-border); display: none; }
   .advisor-response-body.open { display: block; padding-top: 20px; }
   .advisor-response-section { margin-bottom: 16px; }
-  .advisor-response-section-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
-  .advisor-response-section-text { font-size: 14px; font-weight: 300; color: var(--ink-soft); line-height: 1.7; }
-  .advisor-toggle { color: var(--muted); font-size: 12px; transition: transform 0.2s; }
+  .advisor-response-section-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(212,165,90,0.4); margin-bottom: 6px; }
+  .advisor-response-section-text { font-size: 14px; font-weight: 300; color: var(--cream-soft); line-height: 1.7; }
+  .advisor-toggle { color: rgba(212,165,90,0.4); font-size: 12px; transition: transform 0.2s; }
   .advisor-toggle.open { transform: rotate(180deg); }
 
-  /* FOUNDER FIT */
-  .fit-score-wrap { background: var(--ink); border-radius: 4px; padding: 32px; margin-bottom: 28px; display: flex; align-items: center; gap: 40px; }
-  .fit-score-num { font-family: var(--font-display); font-size: 72px; font-weight: 300; color: var(--clay); line-height: 1; flex-shrink: 0; }
-  .fit-score-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(247,242,234,0.5); margin-bottom: 8px; }
-  .fit-score-text { font-family: var(--font-display); font-size: 20px; font-style: italic; color: rgba(247,242,234,0.9); line-height: 1.4; }
+  /* ── ADVISOR AI BADGE ── */
+  .advisor-ai-badge { display: inline-block; font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(212,165,90,0.5); border: 1px solid var(--gold-border); padding: 2px 7px; border-radius: 2px; margin-left: 8px; vertical-align: middle; }
+
+  /* ── FOUNDER FIT ── */
+  .fit-score-wrap { background: var(--plum-mid); border: 1px solid var(--gold-border); border-radius: 4px; padding: 32px; margin-bottom: 28px; display: flex; align-items: center; gap: 40px; }
+  .fit-score-num { font-family: 'Cormorant Garamond', serif; font-size: 72px; font-weight: 300; color: var(--gold); line-height: 1; flex-shrink: 0; }
+  .fit-score-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(212,165,90,0.4); margin-bottom: 8px; }
+  .fit-score-text { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-style: italic; color: rgba(245,230,200,0.9); line-height: 1.4; }
   .fit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-  .fit-card { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 20px; }
-  .fit-card-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
-  .fit-card-text { font-size: 14px; font-weight: 300; color: var(--ink-soft); line-height: 1.65; }
-  .fit-question { background: var(--paper-deep); border: 1px solid var(--border); border-radius: 4px; padding: 24px; border-left: 3px solid var(--clay); }
-  .fit-question-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--clay); margin-bottom: 10px; }
-  .fit-question-text { font-family: var(--font-display); font-size: 20px; font-style: italic; color: var(--ink); line-height: 1.4; }
+  .fit-card { background: var(--card-bg); border: 1px solid var(--gold-border); border-radius: 4px; padding: 20px; }
+  .fit-card-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(212,165,90,0.45); margin-bottom: 10px; }
+  .fit-card-text { font-size: 14px; font-weight: 300; color: var(--cream-soft); line-height: 1.65; }
+  .fit-question { background: var(--plum-mid); border: 1px solid var(--gold-border); border-radius: 4px; padding: 24px; border-left: 3px solid var(--gold); }
+  .fit-question-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
+  .fit-question-text { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-style: italic; color: var(--cream); line-height: 1.4; }
 
-  /* VERDICT */
-  .verdict-banner { border-radius: 4px; padding: 36px; margin-bottom: 28px; text-align: center; }
-  .verdict-banner.go { background: var(--sage); }
-  .verdict-banner.adjust { background: var(--clay); }
-  .verdict-banner.pause { background: var(--ink); }
-  .verdict-word { font-family: var(--font-display); font-size: 64px; font-weight: 300; color: white; line-height: 1; margin-bottom: 16px; letter-spacing: -0.02em; }
-  .verdict-reasoning { font-size: 15px; font-weight: 300; color: rgba(255,255,255,0.85); line-height: 1.7; max-width: 560px; margin: 0 auto; }
+  /* ── VERDICT ── */
+  .verdict-banner { border-radius: 4px; padding: 36px; margin-bottom: 28px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+  .verdict-banner.go     { background: rgba(92,138,98,0.25); }
+  .verdict-banner.adjust { background: rgba(196,98,45,0.25); }
+  .verdict-banner.pause  { background: var(--plum-mid); }
+  .verdict-word { font-family: 'Cormorant Garamond', serif; font-size: 64px; font-weight: 300; color: var(--cream); line-height: 1; margin-bottom: 16px; letter-spacing: -0.02em; }
+  .verdict-banner.go .verdict-word     { color: #8FD49A; }
+  .verdict-banner.adjust .verdict-word { color: #E8A87C; }
+  .verdict-banner.pause .verdict-word  { color: var(--gold); }
+  .verdict-reasoning { font-size: 15px; font-weight: 300; color: rgba(245,230,200,0.75); line-height: 1.7; max-width: 560px; margin: 0 auto; }
   .verdict-section { margin-bottom: 28px; }
-  .verdict-section-title { font-family: var(--font-display); font-size: 22px; font-weight: 500; color: var(--ink); margin-bottom: 16px; }
-  .obstacle-item { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 20px 24px; margin-bottom: 12px; }
-  .obstacle-num { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
-  .obstacle-text { font-size: 14px; font-weight: 400; color: var(--ink); margin-bottom: 6px; line-height: 1.5; }
-  .obstacle-mitigation { font-size: 13px; font-weight: 300; color: var(--ink-soft); line-height: 1.6; }
-  .next-step-item { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
-  .next-step-num { font-family: var(--font-display); font-size: 28px; font-weight: 300; color: var(--clay); line-height: 1; flex-shrink: 0; width: 32px; }
-  .next-step-text { font-size: 14px; font-weight: 300; color: var(--ink-soft); line-height: 1.65; padding-top: 6px; }
-  .restart-btn { display: inline-flex; align-items: center; gap: 10px; background: var(--paper-deep); border: 1px solid var(--border); padding: 14px 28px; font-family: var(--font-body); font-size: 13px; color: var(--ink-soft); border-radius: 2px; cursor: pointer; transition: all 0.2s; }
-  .restart-btn:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .verdict-section-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 500; color: var(--cream); margin-bottom: 16px; }
+  .obstacle-item { background: var(--card-bg); border: 1px solid var(--gold-border); border-radius: 4px; padding: 20px 24px; margin-bottom: 12px; }
+  .obstacle-num { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(212,165,90,0.4); margin-bottom: 6px; }
+  .obstacle-text { font-size: 14px; font-weight: 400; color: var(--cream); margin-bottom: 6px; line-height: 1.5; }
+  .obstacle-mitigation { font-size: 13px; font-weight: 300; color: var(--cream-soft); line-height: 1.6; }
+  .next-step-item { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--gold-border); align-items: flex-start; }
+  .next-step-num { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; color: var(--gold); line-height: 1; flex-shrink: 0; width: 32px; }
+  .next-step-text { font-size: 14px; font-weight: 300; color: var(--cream-soft); line-height: 1.65; padding-top: 6px; }
+  .restart-btn { display: inline-flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--gold-border); padding: 14px 28px; font-family: 'DM Sans', sans-serif; font-size: 13px; color: rgba(212,165,90,0.6); border-radius: 2px; cursor: pointer; transition: all 0.2s; }
+  .restart-btn:hover { background: var(--gold); color: var(--plum); border-color: var(--gold); }
 
-  /* ERROR */
-  .error-box { background: rgba(180,80,70,0.08); border: 1px solid rgba(180,80,70,0.25); border-radius: 4px; padding: 20px 24px; margin-bottom: 24px; font-size: 14px; color: #8B3A34; line-height: 1.6; }
+  /* ── ERROR ── */
+  .error-box { background: rgba(180,60,60,0.1); border: 1px solid rgba(180,60,60,0.3); border-radius: 4px; padding: 20px 24px; margin-bottom: 24px; font-size: 14px; color: #E07070; line-height: 1.6; }
 
-  /* ADVISOR FOLLOW-UP */
-  .followup-wrap { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 8px; }
+  /* ── ADVISOR FOLLOW-UP ── */
+  .followup-wrap { border-top: 1px solid var(--gold-border); padding-top: 20px; margin-top: 8px; }
   .followup-thread { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
-  .followup-q { background: var(--paper-deep); border-radius: 3px; padding: 10px 14px; font-size: 13px; font-weight: 400; color: var(--ink); line-height: 1.55; }
-  .followup-q-label { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-  .followup-a { padding: 0 0 0 14px; border-left: 2px solid var(--clay); font-size: 13px; font-weight: 300; color: var(--ink); line-height: 1.65; font-style: italic; }
-  .followup-a-label { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--clay); margin-bottom: 4px; font-style: normal; }
+  .followup-q { background: rgba(255,255,255,0.04); border-radius: 3px; padding: 10px 14px; font-size: 13px; font-weight: 400; color: var(--cream); line-height: 1.55; }
+  .followup-q-label { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(212,165,90,0.4); margin-bottom: 4px; }
+  .followup-a { padding: 0 0 0 14px; border-left: 2px solid var(--gold); font-size: 13px; font-weight: 300; color: var(--cream-soft); line-height: 1.65; font-style: italic; }
+  .followup-a-label { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; font-style: normal; }
   .followup-input-row { display: flex; gap: 10px; align-items: flex-end; }
-  .followup-input { flex: 1; background: white; border: 1px solid var(--border); border-radius: 2px; padding: 10px 14px; font-family: var(--font-body); font-size: 13px; font-weight: 300; color: var(--ink); outline: none; resize: none; line-height: 1.5; transition: border-color 0.2s; }
-  .followup-input:focus { border-color: var(--clay); }
-  .followup-send { background: var(--ink); border: none; border-radius: 2px; padding: 10px 16px; color: var(--paper); font-family: var(--font-body); font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
-  .followup-send:hover:not(:disabled) { background: var(--clay); }
+  .followup-input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--gold-border); border-radius: 2px; padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 300; color: var(--cream); outline: none; resize: none; line-height: 1.5; transition: border-color 0.2s; }
+  .followup-input:focus { border-color: var(--gold); }
+  .followup-send { background: var(--gold); border: none; border-radius: 2px; padding: 10px 16px; color: var(--plum); font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+  .followup-send:hover:not(:disabled) { background: #E8C07A; }
   .followup-send:disabled { opacity: 0.4; cursor: not-allowed; }
-  .followup-thinking { font-size: 12px; font-style: italic; color: var(--muted); padding: 8px 0; }
-  .gate-wrap { margin-top: 48px; padding-top: 48px; border-top: 1px solid var(--border); }
-  .gate-question { font-family: var(--font-display); font-size: 28px; font-weight: 300; color: var(--ink); margin-bottom: 8px; line-height: 1.2; }
-  .gate-sub { font-size: 14px; font-weight: 300; color: var(--muted); margin-bottom: 32px; }
+  .followup-thinking { font-size: 12px; font-style: italic; color: rgba(212,165,90,0.4); padding: 8px 0; }
+
+  /* ── DECISION GATE ── */
+  .gate-wrap { margin-top: 48px; padding-top: 48px; border-top: 1px solid var(--gold-border); }
+  .gate-question { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; color: var(--cream); margin-bottom: 8px; line-height: 1.2; }
+  .gate-sub { font-size: 14px; font-weight: 300; color: rgba(212,165,90,0.5); margin-bottom: 32px; }
   .gate-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .gate-option { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 28px 24px; cursor: pointer; transition: all 0.2s; text-align: left; font-family: var(--font-body); width: 100%; }
-  .gate-option:hover { border-color: var(--clay); box-shadow: 0 4px 20px rgba(200,132,90,0.12); transform: translateY(-2px); }
-  .gate-option.selected { border-color: var(--clay); background: rgba(200,132,90,0.06); box-shadow: 0 0 0 2px var(--clay); transform: translateY(-2px); }
-  .gate-option.selected .gate-option-title { color: var(--clay); }
+  .gate-option { background: var(--card-bg); border: 1px solid var(--gold-border); border-radius: 4px; padding: 28px 24px; cursor: pointer; transition: all 0.2s; text-align: left; font-family: 'DM Sans', sans-serif; width: 100%; }
+  .gate-option:hover { border-color: var(--gold); box-shadow: 0 4px 24px rgba(212,165,90,0.1); transform: translateY(-2px); }
+  .gate-option.selected { border-color: var(--gold); background: rgba(212,165,90,0.08); box-shadow: 0 0 0 2px var(--gold); transform: translateY(-2px); }
+  .gate-option.selected .gate-option-title { color: var(--gold); }
   .gate-option-icon { font-size: 22px; margin-bottom: 14px; display: block; }
-  .gate-option-title { font-family: var(--font-display); font-size: 20px; font-weight: 500; color: var(--ink); margin-bottom: 8px; }
-  .gate-option-desc { font-size: 13px; font-weight: 300; color: var(--ink-soft); line-height: 1.6; }
+  .gate-option-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 500; color: var(--cream); margin-bottom: 8px; }
+  .gate-option-desc { font-size: 13px; font-weight: 300; color: var(--cream-soft); line-height: 1.6; }
 
-  /* OVERRIDE LOG */
-  .override-wrap { margin-top: 24px; background: var(--paper-deep); border: 1px solid var(--border); border-radius: 4px; padding: 24px; border-left: 3px solid var(--clay); }
-  .override-label { font-size: 11px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--clay); margin-bottom: 10px; }
-  .override-prompt { font-size: 14px; font-weight: 300; color: var(--ink-soft); margin-bottom: 16px; line-height: 1.6; }
+  /* ── OVERRIDE LOG ── */
+  .override-wrap { margin-top: 24px; background: rgba(212,165,90,0.06); border: 1px solid var(--gold-border); border-radius: 4px; padding: 24px; border-left: 3px solid var(--gold); }
+  .override-label { font-size: 11px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
+  .override-prompt { font-size: 14px; font-weight: 300; color: var(--cream-soft); margin-bottom: 16px; line-height: 1.6; }
 
-  /* PATH RESPONSE */
+  /* ── PATH RESPONSE ── */
   .path-response { margin-top: 8px; }
   .path-mode-banner { border-radius: 4px; padding: 28px 32px; margin-bottom: 28px; }
-  .path-mode-banner.support { background: var(--sage); }
-  .path-mode-banner.adjust { background: var(--ink); }
-  .path-mode-banner.explore { background: var(--clay); }
-  .path-mode-label { font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.6); margin-bottom: 10px; }
-  .path-mode-title { font-family: var(--font-display); font-size: 28px; font-weight: 300; color: white; margin-bottom: 10px; }
-  .path-mode-sub { font-size: 14px; font-weight: 300; color: rgba(255,255,255,0.75); line-height: 1.65; }
+  .path-mode-banner.support { background: rgba(92,138,98,0.25); border: 1px solid rgba(92,138,98,0.3); }
+  .path-mode-banner.adjust  { background: rgba(196,98,45,0.25);  border: 1px solid rgba(196,98,45,0.3); }
+  .path-mode-banner.explore { background: var(--plum-mid); border: 1px solid var(--gold-border); }
+  .path-mode-label { font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(245,230,200,0.45); margin-bottom: 10px; }
+  .path-mode-title { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 300; color: var(--cream); margin-bottom: 10px; }
+  .path-mode-sub { font-size: 14px; font-weight: 300; color: rgba(245,230,200,0.65); line-height: 1.65; }
   .path-action-list { list-style: none; display: flex; flex-direction: column; gap: 0; margin-bottom: 28px; }
-  .path-action-item { display: flex; gap: 20px; padding: 20px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
-  .path-action-num { font-family: var(--font-display); font-size: 32px; font-weight: 300; color: var(--clay); line-height: 1; flex-shrink: 0; width: 36px; }
+  .path-action-item { display: flex; gap: 20px; padding: 20px 0; border-bottom: 1px solid var(--gold-border); align-items: flex-start; }
+  .path-action-num { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 300; color: var(--gold); line-height: 1; flex-shrink: 0; width: 36px; }
   .path-action-body { flex: 1; padding-top: 4px; }
-  .path-action-title { font-size: 14px; font-weight: 500; color: var(--ink); margin-bottom: 4px; }
-  .path-action-text { font-size: 14px; font-weight: 300; color: var(--ink-soft); line-height: 1.65; }
-  .path-sela-note { background: var(--ink); border-radius: 4px; padding: 28px; }
-  .path-sela-note-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--clay); margin-bottom: 12px; }
-  .path-sela-note-text { font-family: var(--font-display); font-size: 20px; font-style: italic; color: rgba(247,242,234,0.9); line-height: 1.55; }
+  .path-action-title { font-size: 14px; font-weight: 500; color: var(--cream); margin-bottom: 4px; }
+  .path-action-text { font-size: 14px; font-weight: 300; color: var(--cream-soft); line-height: 1.65; }
+  .path-sela-note { background: var(--plum-mid); border: 1px solid var(--gold-border); border-radius: 4px; padding: 28px; }
+  .path-sela-note-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 12px; }
+  .path-sela-note-text { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-style: italic; color: rgba(245,230,200,0.9); line-height: 1.55; }
 
-  /* SUBSCRIBE GATE */
+  /* ── SUBSCRIBE / AUTH GATES ── */
   .subscribe-gate { max-width: 520px; margin: 0 auto; text-align: center; padding: 80px 0; }
-  .subscribe-gate-icon { font-size: 40px; margin-bottom: 24px; }
-  .subscribe-gate-heading { font-family: var(--font-display); font-size: clamp(28px,4vw,40px); font-weight: 300; color: var(--ink); margin-bottom: 16px; line-height: 1.2; }
-  .subscribe-gate-heading em { font-style: italic; color: var(--clay); }
-  .subscribe-gate-sub { font-size: 15px; font-weight: 300; color: var(--ink-soft); margin-bottom: 40px; line-height: 1.7; }
-  .subscribe-gate-what { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 28px; margin-bottom: 32px; text-align: left; }
-  .subscribe-gate-what-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
-  .subscribe-gate-feature { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .subscribe-gate-icon { font-size: 40px; margin-bottom: 24px; color: var(--gold); }
+  .subscribe-gate-heading { font-family: 'Cormorant Garamond', serif; font-size: clamp(28px,4vw,40px); font-weight: 300; color: var(--cream); margin-bottom: 16px; line-height: 1.2; }
+  .subscribe-gate-heading em { font-style: italic; color: var(--gold); }
+  .subscribe-gate-sub { font-size: 15px; font-weight: 300; color: var(--cream-soft); margin-bottom: 40px; line-height: 1.75; }
+  .subscribe-gate-what { background: var(--card-bg); border: 1px solid var(--gold-border); border-radius: 4px; padding: 28px; margin-bottom: 32px; text-align: left; }
+  .subscribe-gate-what-label { font-size: 10px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(212,165,90,0.45); margin-bottom: 16px; }
+  .subscribe-gate-feature { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--gold-border); }
   .subscribe-gate-feature:last-child { border-bottom: none; padding-bottom: 0; }
-  .subscribe-gate-feature-icon { color: var(--sage); font-size: 15px; flex-shrink: 0; margin-top: 2px; }
-  .subscribe-gate-feature-text { font-size: 14px; font-weight: 300; color: var(--ink-soft); line-height: 1.5; }
+  .subscribe-gate-feature-icon { color: var(--sage-new); font-size: 15px; flex-shrink: 0; margin-top: 2px; }
+  .subscribe-gate-feature-text { font-size: 14px; font-weight: 300; color: var(--cream-soft); line-height: 1.5; }
   .subscribe-gate-notify { display: flex; gap: 10px; margin-bottom: 16px; }
-  .subscribe-gate-notify input { flex: 1; background: white; border: 1px solid var(--border); border-radius: 2px; padding: 14px 16px; font-family: var(--font-body); font-size: 14px; color: var(--ink); outline: none; transition: border-color 0.2s; }
-  .subscribe-gate-notify input:focus { border-color: var(--clay); }
-  .subscribe-gate-notify input::placeholder { color: var(--muted); }
-  .subscribe-gate-submitted { background: rgba(92,122,98,0.1); border: 1px solid rgba(92,122,98,0.3); border-radius: 4px; padding: 16px; font-size: 14px; color: var(--sage); margin-bottom: 16px; }
-  .subscribe-gate-back { background: none; border: none; font-size: 13px; color: var(--muted); cursor: pointer; text-decoration: underline; padding: 8px 0; display: block; margin: 0 auto; }
-  .subscribe-gate-back:hover { color: var(--ink); }
+  .subscribe-gate-notify input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--gold-border); border-radius: 2px; padding: 14px 16px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--cream); outline: none; transition: border-color 0.2s; }
+  .subscribe-gate-notify input:focus { border-color: var(--gold); }
+  .subscribe-gate-notify input::placeholder { color: rgba(245,230,200,0.2); }
+  .subscribe-gate-submitted { background: rgba(92,138,98,0.12); border: 1px solid rgba(92,138,98,0.25); border-radius: 4px; padding: 16px; font-size: 14px; color: var(--sage-new); margin-bottom: 16px; }
+  .subscribe-gate-back { background: none; border: none; font-size: 13px; color: rgba(212,165,90,0.45); cursor: pointer; text-decoration: underline; padding: 8px 0; display: block; margin: 0 auto; }
+  .subscribe-gate-back:hover { color: var(--gold); }
 `
 
 const ADVISOR_COLORS = {
-  Maya:   'var(--sage)',
-  Rex:    'var(--clay)',
+  Maya:   '#D4A55A',
+  Rex:    '#C4622D',
   Stella: '#9B7DB6',
   Dario:  '#7A8FA6',
-  Jordan: '#A0845C',
+  Jordan: '#5C8A62',
 }
 
 const ADVISOR_ROLES = {
@@ -219,6 +248,14 @@ const ADVISOR_ROLES = {
   Stella: 'Brand & Market',
   Dario:  "Devil's Advocate",
   Jordan: "Founder's Coach",
+}
+
+const ADVISOR_BADGES = {
+  Maya:   'AI · Numbers',
+  Rex:    'AI · Execution',
+  Stella: 'AI · Market',
+  Dario:  'AI · Skeptic',
+  Jordan: 'AI · Coach',
 }
 
 async function callClaude(systemPrompt, userMessage) {
@@ -756,7 +793,7 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
           {STEPS.map((s, i) => (
             <>
               <div key={s} className={`assess-step-item ${i === step ? 'active' : i < step ? 'done' : ''}`}>
-                <div className="assess-step-num">{i < step ? '✓' : i + 1}</div>
+                <div className="assess-step-num">{STEP_NUMERALS[i]}</div>
                 <span>{s}</span>
               </div>
               {i < STEPS.length - 1 && <div key={`sep${i}`} className="assess-step-sep" />}
@@ -858,12 +895,12 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
               {teamMembers.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
                   {teamMembers.map((t, i) => (
-                    <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', background:'white', border:'1px solid var(--border)', borderRadius:2, marginBottom:8 }}>
+                    <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', background:'white', border:'1px solid rgba(212,165,90,0.18)', borderRadius:2, marginBottom:8 }}>
                       <div>
                         <span style={{ fontWeight:500, fontSize:14 }}>{t.role}</span>
-                        <span style={{ color:'var(--muted)', fontSize:13, marginLeft:12 }}>${t.salary}/mo · {t.expertise}</span>
+                        <span style={{ color:'rgba(212,165,90,0.45)', fontSize:13, marginLeft:12 }}>${t.salary}/mo · {t.expertise}</span>
                       </div>
-                      <button onClick={() => setTeamMembers(prev => prev.filter((_,j) => j !== i))} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18 }}>×</button>
+                      <button onClick={() => setTeamMembers(prev => prev.filter((_,j) => j !== i))} style={{ background:'none', border:'none', color:'rgba(212,165,90,0.45)', cursor:'pointer', fontSize:18 }}>×</button>
                     </div>
                   ))}
                 </div>
@@ -871,7 +908,7 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
               {!showAddTeam ? (
                 <button className="btn-assess-back" onClick={() => setShowAddTeam(true)}>+ Add a person</button>
               ) : (
-                <div style={{ background:'var(--paper-deep)', border:'1px solid var(--border)', borderRadius:4, padding:20, marginTop:8 }}>
+                <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(212,165,90,0.18)', borderRadius:4, padding:20, marginTop:8 }}>
                   <div className="fin-grid" style={{ marginBottom:12 }}>
                     <div className="field" style={{ marginBottom:0 }}>
                       <label>Role / title</label>
@@ -904,12 +941,12 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
               {investors.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
                   {investors.map((inv, i) => (
-                    <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', background:'white', border:'1px solid var(--border)', borderRadius:2, marginBottom:8 }}>
+                    <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', background:'white', border:'1px solid rgba(212,165,90,0.18)', borderRadius:2, marginBottom:8 }}>
                       <div>
                         <span style={{ fontWeight:500, fontSize:14 }}>{inv.who}</span>
-                        <span style={{ color:'var(--muted)', fontSize:13, marginLeft:12 }}>${inv.amount} · expects: {inv.expectations}</span>
+                        <span style={{ color:'rgba(212,165,90,0.45)', fontSize:13, marginLeft:12 }}>${inv.amount} · expects: {inv.expectations}</span>
                       </div>
-                      <button onClick={() => setInvestors(prev => prev.filter((_,j) => j !== i))} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18 }}>×</button>
+                      <button onClick={() => setInvestors(prev => prev.filter((_,j) => j !== i))} style={{ background:'none', border:'none', color:'rgba(212,165,90,0.45)', cursor:'pointer', fontSize:18 }}>×</button>
                     </div>
                   ))}
                 </div>
@@ -917,7 +954,7 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
               {!showAddInvestor ? (
                 <button className="btn-assess-back" onClick={() => setShowAddInvestor(true)}>+ Add an investor</button>
               ) : (
-                <div style={{ background:'var(--paper-deep)', border:'1px solid var(--border)', borderRadius:4, padding:20, marginTop:8 }}>
+                <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(212,165,90,0.18)', borderRadius:4, padding:20, marginTop:8 }}>
                   <div className="fin-grid" style={{ marginBottom:12 }}>
                     <div className="field" style={{ marginBottom:0 }}>
                       <label>Who (name or description)</label>
@@ -1035,8 +1072,8 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
             </div>
 
             {(finInputs.revenueTypes || []).length > 0 && (
-              <div style={{ background: 'var(--paper-deep)', border: '1px solid var(--border)', borderRadius: 4, padding: 20, marginBottom: 28 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 16 }}>For each stream — give Sela a ballpark</div>
+              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,165,90,0.18)', borderRadius: 4, padding: 20, marginBottom: 28 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(245,230,200,0.55)', marginBottom: 16 }}>For each stream — give Sela a ballpark</div>
                 {[
                   { key: 'subscription', label: 'Subscription / Recurring' },
                   { key: 'perunit',      label: 'Per Unit / Per Sale' },
@@ -1045,8 +1082,8 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
                   { key: 'sponsorship',  label: 'Sponsorship / Advertising' },
                   { key: 'other',        label: 'Other revenue' },
                 ].filter(rt => (finInputs.revenueTypes || []).includes(rt.key)).map(rt => (
-                  <div key={rt.key} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)', marginBottom: 10 }}>{rt.label}</div>
+                  <div key={rt.key} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(212,165,90,0.18)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#F5E6C8', marginBottom: 10 }}>{rt.label}</div>
                     <div className="fin-grid" style={{ marginBottom: 0 }}>
                       <div className="field" style={{ marginBottom: 0 }}>
                         <label>Price per unit / per customer ($)</label>
@@ -1100,11 +1137,11 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
 
             <div style={{ marginBottom: 28 }}>
               {costPrompts.prompts.map(p => (
-                <div key={p.key} style={{ marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)', marginBottom: 4 }}>{p.label}</div>
-                  <div style={{ fontSize: 13, fontWeight: 300, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.6 }}>{p.question}</div>
+                <div key={p.key} style={{ marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid rgba(212,165,90,0.18)' }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#F5E6C8', marginBottom: 4 }}>{p.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 300, color: 'rgba(245,230,200,0.55)', marginBottom: 12, lineHeight: 1.6 }}>{p.question}</div>
                   {p.hint && (
-                    <div style={{ background: 'var(--paper-deep)', border: '1px solid var(--border)', borderLeft: '3px solid var(--clay)', borderRadius: 3, padding: '10px 14px', fontSize: 12, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.6 }}>
+                    <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,165,90,0.18)', borderLeft: '3px solid #C4622D', borderRadius: 3, padding: '10px 14px', fontSize: 12, color: 'rgba(245,230,200,0.55)', marginBottom: 12, lineHeight: 1.6 }}>
                       💡 {p.hint}
                     </div>
                   )}
@@ -1112,11 +1149,11 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
                     <input
                       type="number"
                       placeholder={p.suggestedValue != null ? `Suggested: ${p.suggestedValue}${p.inputType === 'percent' ? '%' : ''}` : 'Enter amount'}
-                      style={{ flex: 1, background: 'white', border: '1px solid var(--border)', borderRadius: 2, padding: '12px 14px', fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--ink)', outline: 'none' }}
+                      style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(212,165,90,0.18)', borderRadius: 2, padding: '12px 14px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#F5E6C8', outline: 'none' }}
                       value={finInputs.costs?.[p.key] ?? ''}
                       onChange={e => setFinInputs(prev => ({ ...prev, costs: { ...prev.costs, [p.key]: e.target.value } }))}
                     />
-                    <span style={{ fontSize: 13, color: 'var(--muted)', flexShrink: 0 }}>
+                    <span style={{ fontSize: 13, color: 'rgba(212,165,90,0.45)', flexShrink: 0 }}>
                       {p.inputType === 'percent' ? '% of revenue' : p.inputType === 'flat_per_unit' ? '$ per unit' : '$ / month'}
                     </span>
                     {p.suggestedValue != null && (
@@ -1129,7 +1166,7 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
                     )}
                   </div>
                   {p.suggestedLabel && (
-                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>{p.suggestedLabel}</div>
+                    <div style={{ fontSize: 11, color: 'rgba(212,165,90,0.45)', marginTop: 6 }}>{p.suggestedLabel}</div>
                   )}
                 </div>
               ))}
@@ -1200,7 +1237,10 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
                 <div className="advisor-response-header" onClick={() => setOpenAdvisor(openAdvisor === a.name ? null : a.name)}>
                   <div className="advisor-badge" style={{ background: ADVISOR_COLORS[a.name] }}>{a.name[0]}</div>
                   <div>
-                    <div className="advisor-response-name">{a.name}</div>
+                    <div className="advisor-response-name">
+                      {a.name}
+                      <span className="advisor-ai-badge">{ADVISOR_BADGES[a.name]}</span>
+                    </div>
                     <div className="advisor-response-role">{ADVISOR_ROLES[a.name]}</div>
                   </div>
                   <div className={`advisor-stance stance-${a.stance.toLowerCase()}`}>{a.stance}</div>
@@ -1517,7 +1557,7 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
               </button>
             </div>
 
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 24, lineHeight: 1.6 }}>
+            <p style={{ fontSize: 12, color: 'rgba(212,165,90,0.45)', marginBottom: 24, lineHeight: 1.6 }}>
               Apple sign-in coming soon. Your first assessment is always free — signing in just saves your progress and unlocks the full flow.
             </p>
 
