@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { getTokenBalance } from '../lib/tokens'
+import TokenModal from './TokenModal'
 
 const STEPS = ['Idea', 'Scorecard', 'Financials', 'Advisors', 'Founder Fit', 'Verdict']
 const STEP_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI']
@@ -341,6 +343,8 @@ export default function Assess() {
   })
   const [isSubscribed]                       = useState(false)
   const [showSubscribeGate, setShowSubscribeGate] = useState(false)
+  const [tokenBalance, setTokenBalance] = useState(null)
+  const [showTokenModal, setShowTokenModal] = useState(false)
   const [showAuthGate, setShowAuthGate]      = useState(false)
   const [notifyEmail, setNotifyEmail]        = useState('')
   const [notifySubmitted, setNotifySubmitted] = useState(false)
@@ -356,10 +360,12 @@ export default function Assess() {
       setUser(session?.user ?? null)
       setAuthLoading(false)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
-      // If they just signed in and the subscribe gate is showing, close it
-      if (session?.user) setShowAuthGate(false)
+      if (session?.user) {
+        setShowAuthGate(false)
+        getTokenBalance(session.user.id).then(bal => setTokenBalance(bal))
+      }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -789,6 +795,26 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
           <span className="assess-logo-ask">Ask</span>
           <span className="assess-logo-sela">Sela</span>
         </div>
+        {user && tokenBalance !== null && (
+          <button
+            onClick={() => setShowTokenModal(true)}
+            style={{
+              background: 'rgba(212,165,90,0.1)',
+              border: '1px solid rgba(212,165,90,0.3)',
+              borderRadius: '20px',
+              padding: '6px 14px',
+              color: '#D4A55A',
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+            🪙 {tokenBalance} tokens
+          </button>
+        )}
         <div className="assess-steps">
           {STEPS.map((s, i) => (
             <>
@@ -1636,7 +1662,14 @@ function LoadingState({ label, sub }) {
           <div className="loading-label">{label}</div>
           <div className="loading-sub">{sub}</div>
         </div>
-      </div>
+</div>
+
+      {showTokenModal && (
+        <TokenModal
+          currentBalance={tokenBalance ?? 0}
+          onClose={() => setShowTokenModal(false)}
+        />
+      )}
     </div>
   )
 }
