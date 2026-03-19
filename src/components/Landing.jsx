@@ -89,6 +89,7 @@ export default function Landing() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [tokenBalance, setTokenBalance] = useState(null)
+  const [showUserMenu, setShowUserMenu] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -144,26 +145,68 @@ export default function Landing() {
           <span className="landing-logo-sela">Sela</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {user && tokenBalance !== null && (
-            <span style={{
-              background: 'rgba(212,165,90,0.1)',
-              border: '1px solid rgba(212,165,90,0.3)',
-              borderRadius: '20px',
-              padding: '6px 12px',
-              color: '#D4A55A',
-              fontFamily: 'DM Sans, sans-serif',
-              fontSize: '12px',
-              fontWeight: '500',
-              display: window.innerWidth < 600 ? 'none' : 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}>
-              🪙 {tokenBalance}
-            </span>
-          )}
-          {user && window.innerWidth >= 600 && (
-            <button className="landing-nav-btn" onClick={() => supabase.auth.signOut()}>
-              Sign out
+          {user ? (
+            <>
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowUserMenu(p => !p)}
+                  style={{
+                    background: 'rgba(212,165,90,0.1)',
+                    border: '1px solid rgba(212,165,90,0.3)',
+                    borderRadius: '20px',
+                    padding: '6px 12px',
+                    color: '#D4A55A',
+                    fontFamily: 'DM Sans, sans-serif',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}>
+                  🪙 {tokenBalance ?? '—'} tokens ▾
+                </button>
+                {showUserMenu && (
+                  <div style={{
+                    position: 'absolute', top: '110%', right: 0,
+                    background: '#2A1545',
+                    border: '1px solid rgba(212,165,90,0.25)',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    minWidth: '160px',
+                    zIndex: 200,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+                  }}>
+                    <div style={{
+                      padding: '8px 12px',
+                      fontSize: '12px',
+                      color: 'rgba(245,230,200,0.45)',
+                      borderBottom: '1px solid rgba(212,165,90,0.15)',
+                      marginBottom: '4px'
+                    }}>
+                      {tokenBalance ?? 0} tokens remaining
+                    </div>
+                    <button
+                      onClick={() => { supabase.auth.signOut(); setShowUserMenu(false) }}
+                      style={{
+                        width: '100%', textAlign: 'left',
+                        background: 'none', border: 'none',
+                        padding: '8px 12px',
+                        color: '#F5E6C8', fontSize: '13px',
+                        cursor: 'pointer', borderRadius: '4px'
+                      }}>
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <button className="landing-nav-btn" onClick={() => supabase.auth.signInWithOAuth({
+              provider: 'google',
+              options: { redirectTo: window.location.href }
+            })}>
+              Sign in →
             </button>
           )}
           <button className="landing-nav-btn" onClick={() => navigate('/assess')}>
