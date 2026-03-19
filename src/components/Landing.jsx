@@ -83,6 +83,42 @@ const styles = `
     .landing-advisors { padding: 0 24px 60px; }
     .landing-footer { padding: 20px 24px; }
   }
+
+  /* USER MENU DROPDOWN */
+  .user-menu-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: #1C0F2E;
+    border: 1px solid rgba(212,165,90,0.3);
+    border-radius: 8px;
+    padding: 6px;
+    min-width: 170px;
+    z-index: 1000;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  .user-menu-label {
+    padding: 8px 12px 10px;
+    font-size: 12px;
+    color: rgba(245,230,200,0.4);
+    border-bottom: 1px solid rgba(212,165,90,0.15);
+    margin-bottom: 4px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .user-menu-btn {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 9px 12px;
+    color: #F5E6C8;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .user-menu-btn:hover { background: rgba(212,165,90,0.08); }
 `
 
 export default function Landing() {
@@ -113,6 +149,23 @@ export default function Landing() {
     document.head.appendChild(el)
     return () => document.head.removeChild(el)
   }, [])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!showUserMenu) return
+    const handler = (e) => {
+      if (!e.target.closest('.user-menu-wrap')) setShowUserMenu(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showUserMenu])
+
+  async function handleSignOut() {
+    setShowUserMenu(false)
+    await supabase.auth.signOut()
+    setUser(null)
+    setTokenBalance(null)
+  }
 
   return (
     <div className="landing-wrap">
@@ -146,61 +199,36 @@ export default function Landing() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {user ? (
-            <>
-              <div style={{ position: 'relative' }}>
-                <button
-                  onClick={() => setShowUserMenu(p => !p)}
-                  style={{
-                    background: 'rgba(212,165,90,0.1)',
-                    border: '1px solid rgba(212,165,90,0.3)',
-                    borderRadius: '20px',
-                    padding: '6px 12px',
-                    color: '#D4A55A',
-                    fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px'
-                  }}>
-                  🪙 {tokenBalance ?? '—'} tokens ▾
-                </button>
-                {showUserMenu && (
-                  <div style={{
-                    position: 'absolute', top: '110%', right: 0,
-                    background: '#2A1545',
-                    border: '1px solid rgba(212,165,90,0.25)',
-                    borderRadius: '8px',
-                    padding: '8px',
-                    minWidth: '160px',
-                    zIndex: 200,
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
-                  }}>
-                    <div style={{
-                      padding: '8px 12px',
-                      fontSize: '12px',
-                      color: 'rgba(245,230,200,0.45)',
-                      borderBottom: '1px solid rgba(212,165,90,0.15)',
-                      marginBottom: '4px'
-                    }}>
-                      {tokenBalance ?? 0} tokens remaining
-                    </div>
-                    <button
-                      onClick={() => { supabase.auth.signOut(); setShowUserMenu(false) }}
-                      style={{
-                        width: '100%', textAlign: 'left',
-                        background: 'none', border: 'none',
-                        padding: '8px 12px',
-                        color: '#F5E6C8', fontSize: '13px',
-                        cursor: 'pointer', borderRadius: '4px'
-                      }}>
-                      Sign out
-                    </button>
+            <div className="user-menu-wrap" style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowUserMenu(p => !p)}
+                style={{
+                  background: 'rgba(212,165,90,0.1)',
+                  border: '1px solid rgba(212,165,90,0.3)',
+                  borderRadius: '20px',
+                  padding: '6px 14px',
+                  color: '#D4A55A',
+                  fontFamily: 'DM Sans, sans-serif',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                🪙 {tokenBalance ?? '—'} tokens ▾
+              </button>
+              {showUserMenu && (
+                <div className="user-menu-dropdown">
+                  <div className="user-menu-label">
+                    {tokenBalance ?? 0} tokens remaining
                   </div>
-                )}
-              </div>
-            </>
+                  <button className="user-menu-btn" onClick={handleSignOut}>
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <button className="landing-nav-btn" onClick={() => supabase.auth.signInWithOAuth({
               provider: 'google',
