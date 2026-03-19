@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getTokenBalance, spendTokens } from '../lib/tokens'
 import TokenModal from './TokenModal'
- 
+
 const STEPS = ['Idea', 'Scorecard', 'Financials', 'Advisors', 'Founder Fit', 'Verdict']
 const STEP_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI']
 
@@ -293,12 +293,12 @@ export default function Assess() {
   const [founderContext, setFounderContext] = useState('')
 
   // Step 0.5 — founder context
-  const [founderRole, setFounderRole]     = useState('')  // 'operator' | 'owner' | 'investor'
-  const [founderGoal, setFounderGoal]     = useState('')  // 'primary' | 'parttime' | 'equity'
-  const [needsPay, setNeedsPay]           = useState('')  // 'yes' | 'no'
+  const [founderRole, setFounderRole]     = useState('')
+  const [founderGoal, setFounderGoal]     = useState('')
+  const [needsPay, setNeedsPay]           = useState('')
   const [payAmount, setPayAmount]         = useState('')
-  const [teamMembers, setTeamMembers]     = useState([])  // [{role, salary, expertise}]
-  const [investors, setInvestors]         = useState([])  // [{who, amount, expectations}]
+  const [teamMembers, setTeamMembers]     = useState([])
+  const [investors, setInvestors]         = useState([])
   const [showAddTeam, setShowAddTeam]     = useState(false)
   const [showAddInvestor, setShowAddInvestor] = useState(false)
   const [newTeamMember, setNewTeamMember] = useState({ role: '', salary: '', expertise: '' })
@@ -310,14 +310,14 @@ export default function Assess() {
   // Step 3 — financial inputs + results
   const [finInputs, setFinInputs] = useState({ startup: '', revenueTypes: [], streams: {}, costs: {} })
   const [financials, setFinancials] = useState(null)
-  const [costPrompts, setCostPrompts] = useState(null) // AI-generated contextual cost questions
+  const [costPrompts, setCostPrompts] = useState(null)
 
   // Step 4 — advisors
   const [advisors, setAdvisors]   = useState(null)
   const [openAdvisor, setOpenAdvisor] = useState(null)
-  const [followUpInputs, setFollowUpInputs]   = useState({}) // { advisorName: currentInput }
-  const [followUpThreads, setFollowUpThreads] = useState({}) // { advisorName: [{q, a}] }
-  const [followUpLoading, setFollowUpLoading] = useState({}) // { advisorName: bool }
+  const [followUpInputs, setFollowUpInputs]   = useState({})
+  const [followUpThreads, setFollowUpThreads] = useState({})
+  const [followUpLoading, setFollowUpLoading] = useState({})
 
   // Step 5 — fit inputs + results
   const [fitInputs, setFitInputs] = useState({ background: '', time: '', capital: '', motivation: '', weakness: '' })
@@ -331,11 +331,7 @@ export default function Assess() {
   const [overrideReason, setOverrideReason] = useState('')
   const [pathResponse, setPathResponse]     = useState(null)
 
-  // ── Auth + subscription architecture ─────────────────────────
-  // user: the signed-in Supabase user object (null if not signed in)
-  // assessmentCount: persists in localStorage as a fallback; server-side enforcement comes later
-  // isSubscribed: always false for now — flipped to true when Stripe is live
-  // showSubscribeGate / showAuthGate: control which modal is visible
+  // ── Auth + token architecture ─────────────────────────────────
   const [user, setUser]                      = useState(null)
   const [authLoading, setAuthLoading]        = useState(true)
   const [assessmentCount, setAssessmentCount] = useState(() => {
@@ -343,24 +339,23 @@ export default function Assess() {
   })
   const [isSubscribed]                       = useState(false)
   const [showSubscribeGate, setShowSubscribeGate] = useState(false)
-  const [tokenBalance, setTokenBalance] = useState(null)
-  const [showTokenModal, setShowTokenModal] = useState(false)
+  const [tokenBalance, setTokenBalance]      = useState(null)
+  const [showTokenModal, setShowTokenModal]  = useState(false)
   const [showAuthGate, setShowAuthGate]      = useState(false)
   const [notifyEmail, setNotifyEmail]        = useState('')
   const [notifySubmitted, setNotifySubmitted] = useState(false)
 
-  // Gate logic:
-  // - Not signed in → show auth gate (sign in first)
-  // - Signed in, second+ assessment, not subscribed → show subscribe gate
   const isGated = assessmentCount >= 1 && !isSubscribed
 
-  // Listen for auth state changes (sign in / sign out)
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       setAuthLoading(false)
+      if (session?.user) {
+        getTokenBalance(session.user.id).then(bal => setTokenBalance(bal))
+      }
     })
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
         setShowAuthGate(false)
@@ -377,12 +372,10 @@ export default function Assess() {
     return () => document.head.removeChild(el)
   }, [])
 
-  // Scroll to top on every step change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [step])
 
-  // Build a founder context summary string for AI calls
   function founderContextSummary() {
     const roleMap = { operator: 'Owner-operator (hands-on, day-to-day)', owner: 'Hands-on owner but not primary day-to-day operator', investor: 'Investor (not involved in day-to-day)' }
     const goalMap = { primary: 'Primary income source', parttime: 'Part-time / supplemental income', equity: 'Future equity value / exit' }
@@ -479,14 +472,12 @@ Founder context: ${founderContextSummary()}`
   async function generateFinancials() {
     setLoading(true); setError(null)
     try {
-      // Build revenue summary
       const streamNames = { subscription: 'Subscription/Recurring', perunit: 'Per Unit/Sale', project: 'Project/Contract', ticket: 'Ticket/Event', sponsorship: 'Sponsorship/Advertising', other: 'Other' }
       const revenueDetail = (finInputs.revenueTypes || []).map(k => {
         const s = finInputs.streams?.[k]
         return `${streamNames[k]}: $${s?.price || 'unknown'} per unit, ~${s?.volume || 'unknown'} units/month`
       }).join(' | ')
 
-      // Build contextual cost summary from AI-generated prompts
       const costDetail = (costPrompts?.prompts || []).map(p => {
         const val = finInputs.costs?.[p.key]
         if (!val && val !== 0) return `${p.label}: not provided (use industry standard: ${p.suggestedLabel || 'unknown'})`
@@ -662,7 +653,6 @@ Most important question: ${fit?.mostImportantQuestion}`
   }
 
   function reset() {
-    // Increment count so second assessment triggers the gate
     const newCount = assessmentCount + 1
     setAssessmentCount(newCount)
     try { localStorage.setItem('sela_assessment_count', String(newCount)) } catch {}
@@ -719,7 +709,7 @@ Business idea: ${idea}
 Verdict was: ${verdict?.verdict} — ${verdict?.reasoning}
 Biggest obstacle: ${verdict?.obstacles?.[0]?.obstacle}`,
 
-        adjust: `The founder wants to adjust their idea to improve the assessment. 
+        adjust: `The founder wants to adjust their idea to improve the assessment.
 Return JSON with this shape:
 {
   "modeTitle": "short title",
@@ -762,7 +752,6 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
       if (!parsed) throw new Error('Could not parse response. Please try again.')
       setPathResponse(parsed)
       setStep(6)
-      // Save to Supabase if user is signed in — silent, non-blocking
       if (user) {
         saveAssessment(parsed, path)
       }
@@ -783,12 +772,9 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
         path_response: { ...pathResponseData, chosenPath: path },
       })
     } catch(e) {
-      // Silent fail — don't interrupt the user experience if save fails
       console.error('Assessment save failed:', e)
     }
   }
-
-  // ── Render helpers ─────────────────────────────────────────────
 
   function scoreColor(s) {
     if (s >= 7.5) return 'var(--sage)'
@@ -803,8 +789,6 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
     if (w === 'ADJUST') return 'adjust'
     return 'pause'
   }
-
-  // ── Steps ──────────────────────────────────────────────────────
 
   return (
     <div className="assess-wrap">
@@ -879,7 +863,6 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
             <h1 className="assess-heading">Before Sela scores it —<br /><em>a few things about you.</em></h1>
             <p className="assess-sub">These questions shape everything. A business that works for a full-time solo operator looks very different from one that works for a part-time investor. Sela needs to know which one you are.</p>
 
-            {/* Role */}
             <div className="field">
               <label>What's your desired role in this business? *</label>
               <div className="gate-options" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 0 }}>
@@ -896,7 +879,6 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
               </div>
             </div>
 
-            {/* Goal */}
             <div className="field" style={{ marginTop: 28 }}>
               <label>What's your primary goal? *</label>
               <div className="gate-options" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 0 }}>
@@ -913,7 +895,6 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
               </div>
             </div>
 
-            {/* Pay in 12 months */}
             <div className="field" style={{ marginTop: 28 }}>
               <label>Do you need to get paid in the first 12 months? *</label>
               <div className="gate-options" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 0 }}>
@@ -934,7 +915,6 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
               )}
             </div>
 
-            {/* Team members */}
             <div className="field" style={{ marginTop: 28 }}>
               <label>Is anyone else involved who expects to be paid?</label>
               {teamMembers.length > 0 && (
@@ -980,7 +960,6 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
               )}
             </div>
 
-            {/* Investors */}
             <div className="field" style={{ marginTop: 12 }}>
               <label>Is anyone else putting money into the business?</label>
               {investors.length > 0 && (
@@ -1154,7 +1133,7 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
                 ? <LoadingState label="Tailoring cost questions to your business..." sub="Sela is pulling industry benchmarks" />
                 : <button className="btn-assess-primary"
                     disabled={!(finInputs.revenueTypes?.length > 0)}
-                   onClick={async () => {
+                    onClick={async () => {
                       if (isGated && !user) { setShowAuthGate(true); return }
                       if (isGated && user) {
                         const result = await spendTokens(user.id, 'ASSESSMENT', 'Started new assessment')
@@ -1507,7 +1486,6 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
                 </button>
               </div>
 
-              {/* Override log — only shown when proceeding against a non-GO verdict */}
               {chosenPath === 'proceed' && verdict.verdict !== 'GO' && (
                 <div className="override-wrap">
                   <div className="override-label">Override log</div>
@@ -1579,7 +1557,7 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
           </>
         )}
 
-        {/* ── AUTH GATE — shown when not signed in ── */}
+        {/* ── AUTH GATE ── */}
         {showAuthGate && (
           <div className="subscribe-gate">
             <div className="subscribe-gate-icon">◎</div>
@@ -1619,7 +1597,7 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
           </div>
         )}
 
-        {/* ── SUBSCRIBE GATE — shown on second+ assessment ── */}
+        {/* ── SUBSCRIBE GATE ── */}
         {showSubscribeGate && (
           <div className="subscribe-gate">
             <div className="subscribe-gate-icon">◎</div>
@@ -1675,6 +1653,15 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
         )}
 
       </div>
+
+      {/* TOKEN MODAL — outside assess-content, inside assess-wrap */}
+      {showTokenModal && (
+        <TokenModal
+          currentBalance={tokenBalance ?? 0}
+          onClose={() => setShowTokenModal(false)}
+        />
+      )}
+
     </div>
   )
 }
@@ -1688,14 +1675,7 @@ function LoadingState({ label, sub }) {
           <div className="loading-label">{label}</div>
           <div className="loading-sub">{sub}</div>
         </div>
-</div>
-
-      {showTokenModal && (
-        <TokenModal
-          currentBalance={tokenBalance ?? 0}
-          onClose={() => setShowTokenModal(false)}
-        />
-      )}
+      </div>
     </div>
   )
 }
