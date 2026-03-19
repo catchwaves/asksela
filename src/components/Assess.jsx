@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getTokenBalance, spendTokens } from '../lib/tokens'
 import TokenModal from './TokenModal'
-
+ 
 const STEPS = ['Idea', 'Scorecard', 'Financials', 'Advisors', 'Founder Fit', 'Verdict']
 const STEP_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI']
 
