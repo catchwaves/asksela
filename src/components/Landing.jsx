@@ -15,6 +15,9 @@ const styles = `
   .landing-logo-sela { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-style: italic; color: #F5E6C8; line-height: 1; }
   .landing-nav-btn { background: none; border: 1px solid rgba(212,165,90,0.4); color: #D4A55A; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; padding: 9px 20px; cursor: pointer; border-radius: 2px; transition: all 0.2s; }
   .landing-nav-btn:hover { background: rgba(212,165,90,0.08); border-color: #D4A55A; }
+  .landing-nav-signout { background: none; border: none; color: rgba(212,165,90,0.5); font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 400; letter-spacing: 0.08em; padding: 9px 4px; cursor: pointer; text-decoration: underline; transition: color 0.2s; }
+  .landing-nav-signout:hover { color: #D4A55A; }
+  .landing-nav-tokens { background: rgba(212,165,90,0.1); border: 1px solid rgba(212,165,90,0.3); border-radius: 20px; padding: 6px 14px; color: #D4A55A; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; white-space: nowrap; }
 
   .landing-hero { display: flex; align-items: center; justify-content: space-between; max-width: 1100px; margin: 0 auto; padding: 40px 48px 20px; position: relative; z-index: 10; gap: 24px; }
   .landing-hero-left { flex: 1; max-width: 500px; }
@@ -62,7 +65,7 @@ const styles = `
   .landing-category { font-size: 10px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(212,165,90,0.5); margin-bottom: 10px; display: block; }
 
   @media (max-width: 768px) {
-    .landing-nav { padding: 16px 24px; }
+    .landing-nav { padding: 16px 24px; gap: 8px; }
     .landing-hero { flex-direction: column; padding: 24px 24px 0; gap: 0; }
     .landing-hero-left { max-width: 100%; }
     .landing-sela { width: 180px; margin: 0 auto; }
@@ -71,6 +74,7 @@ const styles = `
     .landing-adv { min-width: calc(50% - 5px); }
     .landing-advisors { padding: 0 24px 60px; }
     .landing-footer { padding: 20px 24px; }
+    .landing-nav-tokens { display: none; }
   }
 `
 
@@ -78,7 +82,6 @@ export default function Landing() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [tokenBalance, setTokenBalance] = useState(null)
-  const [showUserMenu, setShowUserMenu] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -112,7 +115,7 @@ export default function Landing() {
   }
 
   return (
-    <div className="landing-wrap" onClick={() => showUserMenu && setShowUserMenu(false)}>
+    <div className="landing-wrap">
 
       <svg className="landing-stars" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice">
         <circle cx="80"   cy="60"  r="1"   fill="#D4A55A" opacity="0.5"/>
@@ -141,72 +144,18 @@ export default function Landing() {
           <span className="landing-logo-sela">Sela</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {user ? (
-            <div style={{ position: 'relative' }}>
-              {/* Token pill */}
-              <button
-                onClick={() => setShowUserMenu(p => !p)}
-                style={{
-                  background: 'rgba(212,165,90,0.12)',
-                  border: '1px solid rgba(212,165,90,0.35)',
-                  borderRadius: '20px',
-                  padding: '7px 14px',
-                  color: '#D4A55A',
-                  fontFamily: 'DM Sans, sans-serif',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap'
-                }}>
-                🪙 {tokenBalance ?? '—'} tokens ▾
-              </button>
-
-              {/* Dropdown — solid background, high z-index */}
-              {showUserMenu && (
-                <div style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 8px)',
-                  right: 0,
-                  background: '#1C0F2E',
-                  border: '1px solid rgba(212,165,90,0.4)',
-                  borderRadius: '10px',
-                  overflow: 'hidden',
-                  minWidth: '180px',
-                  zIndex: 9999,
-                  boxShadow: '0 16px 48px rgba(0,0,0,0.9)',
-                }}>
-                  <div style={{
-                    padding: '12px 16px',
-                    fontSize: '12px',
-                    color: 'rgba(245,230,200,0.5)',
-                    borderBottom: '1px solid rgba(212,165,90,0.2)',
-                    fontFamily: 'DM Sans, sans-serif',
-                    background: '#1C0F2E',
-                  }}>
-                    {tokenBalance ?? 0} tokens remaining
-                  </div>
-                  <div
-                    onClick={handleSignOut}
-                    style={{
-                      padding: '12px 16px',
-                      fontSize: '14px',
-                      color: '#F5E6C8',
-                      background: '#1C0F2E',
-                      fontFamily: 'DM Sans, sans-serif',
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#2A1545'}
-                    onMouseLeave={e => e.currentTarget.style.background = '#1C0F2E'}
-                  >
-                    Sign out
-                  </div>
-                </div>
+            <>
+              {tokenBalance !== null && (
+                <span className="landing-nav-tokens">
+                  🪙 {tokenBalance} tokens
+                </span>
               )}
-            </div>
+              <button className="landing-nav-signout" onClick={handleSignOut}>
+                Sign out
+              </button>
+            </>
           ) : (
             <button className="landing-nav-btn" onClick={() => supabase.auth.signInWithOAuth({
               provider: 'google',
