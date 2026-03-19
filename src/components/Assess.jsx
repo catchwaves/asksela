@@ -793,10 +793,21 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
   return (
     <div className="assess-wrap">
       {/* NAV */}
-      <nav className="assess-nav">
+     <nav className="assess-nav">
         <div className="assess-logo" onClick={() => navigate('/')}>
           <span className="assess-logo-ask">Ask</span>
           <span className="assess-logo-sela">Sela</span>
+        </div>
+        <div className="assess-steps">
+          {STEPS.map((s, i) => (
+            <>
+              <div key={s} className={`assess-step-item ${i === step ? 'active' : i < step ? 'done' : ''}`}>
+                <div className="assess-step-num">{STEP_NUMERALS[i]}</div>
+                <span>{s}</span>
+              </div>
+              {i < STEPS.length - 1 && <div key={`sep${i}`} className="assess-step-sep" />}
+            </>
+          ))}
         </div>
         {user && tokenBalance !== null && (
           <button
@@ -818,17 +829,6 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
             🪙 {tokenBalance} tokens
           </button>
         )}
-        <div className="assess-steps">
-          {STEPS.map((s, i) => (
-            <>
-              <div key={s} className={`assess-step-item ${i === step ? 'active' : i < step ? 'done' : ''}`}>
-                <div className="assess-step-num">{STEP_NUMERALS[i]}</div>
-                <span>{s}</span>
-              </div>
-              {i < STEPS.length - 1 && <div key={`sep${i}`} className="assess-step-sep" />}
-            </>
-          ))}
-        </div>
       </nav>
 
       <div className="assess-content">
