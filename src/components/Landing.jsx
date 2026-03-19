@@ -143,33 +143,27 @@ export default function Landing() {
           <span className="landing-logo-ask">Ask </span>
           <span className="landing-logo-sela">Sela</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {user ? (
-            <>
-              {tokenBalance !== null && (
-                <span style={{
-                  background: 'rgba(212,165,90,0.1)',
-                  border: '1px solid rgba(212,165,90,0.3)',
-                  borderRadius: '20px',
-                  padding: '6px 14px',
-                  color: '#D4A55A',
-                  fontFamily: 'DM Sans, sans-serif',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                }}>
-                  🪙 {tokenBalance} tokens
-                </span>
-              )}
-              <button className="landing-nav-btn" onClick={() => supabase.auth.signOut()}>
-                Sign out
-              </button>
-            </>
-          ) : (
-            <button className="landing-nav-btn" onClick={() => supabase.auth.signInWithOAuth({
-              provider: 'google',
-              options: { redirectTo: window.location.href }
-            })}>
-              Sign in →
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {user && tokenBalance !== null && (
+            <span style={{
+              background: 'rgba(212,165,90,0.1)',
+              border: '1px solid rgba(212,165,90,0.3)',
+              borderRadius: '20px',
+              padding: '6px 12px',
+              color: '#D4A55A',
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: '12px',
+              fontWeight: '500',
+              display: window.innerWidth < 600 ? 'none' : 'flex',
+              alignItems: 'center',
+              gap: '5px'
+            }}>
+              🪙 {tokenBalance}
+            </span>
+          )}
+          {user && window.innerWidth >= 600 && (
+            <button className="landing-nav-btn" onClick={() => supabase.auth.signOut()}>
+              Sign out
             </button>
           )}
           <button className="landing-nav-btn" onClick={() => navigate('/assess')}>
