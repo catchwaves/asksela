@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getTokenBalance } from '../lib/tokens'
+import { getTokenBalance, spendTokens } from '../lib/tokens'
 import TokenModal from './TokenModal'
 
 const STEPS = ['Idea', 'Scorecard', 'Financials', 'Advisors', 'Founder Fit', 'Verdict']
@@ -560,6 +560,16 @@ Biggest risk identified: ${scorecard?.biggestRisk}`
   }
 
   async function generateFollowUp(advisorName, question) {
+    // Token gate — 1 token per follow-up
+    if (user) {
+      const result = await spendTokens(user.id, 'ADVISOR_FOLLOWUP', `Asked ${advisorName} a follow-up`)
+      if (!result.success) {
+        if (result.error === 'insufficient_tokens') { setShowTokenModal(true); return }
+        setError('Could not spend token. Please try again.'); return
+      }
+      setTokenBalance(result.newBalance)
+    }
+
     setFollowUpLoading(p => ({ ...p, [advisorName]: true }))
     const advisor = advisors.advisors.find(a => a.name === advisorName)
     const thread  = followUpThreads[advisorName] || []
@@ -674,6 +684,15 @@ Most important question: ${fit?.mostImportantQuestion}`
   }
 
   async function generatePathResponse(path) {
+    // Token gate — 2 tokens for gameplan
+    if (user) {
+      const result = await spendTokens(user.id, 'GAMEPLAN', 'Generated path response')
+      if (!result.success) {
+        if (result.error === 'insufficient_tokens') { setShowTokenModal(true); return }
+        setError('Could not spend token. Please try again.'); return
+      }
+      setTokenBalance(result.newBalance)
+    }
     setLoading(true); setError(null)
     try {
       const systemPrompts = {
@@ -1135,9 +1154,16 @@ What was viable in the original: ${scorecard?.strongestPoint}`,
                 ? <LoadingState label="Tailoring cost questions to your business..." sub="Sela is pulling industry benchmarks" />
                 : <button className="btn-assess-primary"
                     disabled={!(finInputs.revenueTypes?.length > 0)}
-                    onClick={() => {
+                   onClick={async () => {
                       if (isGated && !user) { setShowAuthGate(true); return }
-                      if (isGated && user) { setShowSubscribeGate(true); return }
+                      if (isGated && user) {
+                        const result = await spendTokens(user.id, 'ASSESSMENT', 'Started new assessment')
+                        if (!result.success) {
+                          if (result.error === 'insufficient_tokens') { setShowTokenModal(true); return }
+                          setError('Could not spend token. Please try again.'); return
+                        }
+                        setTokenBalance(result.newBalance)
+                      }
                       generateCostPrompts()
                     }}>
                     Next: costs & capital →
