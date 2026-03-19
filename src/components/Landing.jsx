@@ -1,5 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { getTokenBalance } from '../lib/tokens'
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,300;1,500&family=DM+Sans:wght@300;400;500&display=swap');
@@ -85,6 +87,24 @@ const styles = `
 
 export default function Landing() {
   const navigate = useNavigate()
+  const [user, setUser] = useState(null)
+  const [tokenBalance, setTokenBalance] = useState(null)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        getTokenBalance(session.user.id).then(bal => setTokenBalance(bal))
+      }
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        getTokenBalance(session.user.id).then(bal => setTokenBalance(bal))
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   useEffect(() => {
     const el = document.createElement('style')
@@ -123,9 +143,39 @@ export default function Landing() {
           <span className="landing-logo-ask">Ask </span>
           <span className="landing-logo-sela">Sela</span>
         </div>
-        <button className="landing-nav-btn" onClick={() => navigate('/assess')}>
-          Begin your reading →
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {user ? (
+            <>
+              {tokenBalance !== null && (
+                <span style={{
+                  background: 'rgba(212,165,90,0.1)',
+                  border: '1px solid rgba(212,165,90,0.3)',
+                  borderRadius: '20px',
+                  padding: '6px 14px',
+                  color: '#D4A55A',
+                  fontFamily: 'DM Sans, sans-serif',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                }}>
+                  🪙 {tokenBalance} tokens
+                </span>
+              )}
+              <button className="landing-nav-btn" onClick={() => supabase.auth.signOut()}>
+                Sign out
+              </button>
+            </>
+          ) : (
+            <button className="landing-nav-btn" onClick={() => supabase.auth.signInWithOAuth({
+              provider: 'google',
+              options: { redirectTo: window.location.href }
+            })}>
+              Sign in →
+            </button>
+          )}
+          <button className="landing-nav-btn" onClick={() => navigate('/assess')}>
+            Begin your reading →
+          </button>
+        </div>
       </nav>
 
       {/* Hero */}
